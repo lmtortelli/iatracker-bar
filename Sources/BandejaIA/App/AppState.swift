@@ -21,14 +21,21 @@ final class AppState: ObservableObject {
 
     let database: AppDatabase
     let isDemo: Bool
+    /// Coletor real; `nil` no modo demonstração.
+    private(set) var monitor: ActivityMonitor?
 
     private let aggregator = ReportAggregator()
     private let logger = Logger(subsystem: "BandejaIA", category: "AppState")
     private var cancellables: Set<AnyCancellable> = []
 
+    static let shared = bootstrap(demo: AppEnvironment.isDemo)
+
     init(database: AppDatabase, isDemo: Bool) {
         self.database = database
         self.isDemo = isDemo
+        if !isDemo {
+            paused = UserDefaults.standard.bool(forKey: Preferences.Key.paused)
+        }
         reload()
 
         // Os limites mudam devagar; o cronômetro é atualizado pela própria view.
@@ -42,9 +49,17 @@ final class AppState: ObservableObject {
             .store(in: &cancellables)
     }
 
-    static func bootstrap() -> AppState {
+    /// Inicia a coleta (fora do modo demonstração).
+    func startCollecting() {
+        guard !isDemo, monitor == nil else { return }
+        let monitor = ActivityMonitor(database: database, paused: paused)
+        monitor.onChange = { [weak self] in self?.reload() }
+        monitor.start()
+        self.monitor = monitor
+    }
+
+    static func bootstrap(demo isDemo: Bool) -> AppState {
         Preferences.registerDefaults()
-        let isDemo = AppEnvironment.isDemo
         do {
             let database = isDemo ? try AppDatabase.inMemory() : try AppDatabase.onDisk()
             if isDemo { try DemoData.seed(database, now: .now) }
@@ -134,10 +149,15 @@ final class AppState: ObservableObject {
 
     func togglePause() {
         paused.toggle()
+        guard isDemo else {
+            UserDefaults.standard.set(paused, forKey: Preferences.Key.paused)
+            monitor?.setPaused(paused)
+            return
+        }
         if paused, var session = activeSession {
             session.endedAt = .now
             save(session)
-        } else if !paused, isDemo, let last = todaySessions.last {
+        } else if !paused, let last = todaySessions.last {
             // No modo demonstração não há coletor: retoma uma sessão igual à última.
             insert(Session(
                 provider: last.provider,
@@ -177,11 +197,8 @@ final class AppState: ObservableObject {
 }
 
 enum AppEnvironment {
-    /// Fase 1: ainda sem coletor, então o app abre em modo demonstração por padrão.
-    /// `--no-demo` abre o banco real (vazio até a Fase 2).
+    /// `--demo` (ou `BANDEJA_DEMO=1`) abre um banco em memória com os dados do protótipo.
     static var isDemo: Bool {
-        let arguments = CommandLine.arguments
-        if arguments.contains("--no-demo") { return false }
-        return true
+        CommandLine.arguments.contains("--demo") || ProcessInfo.processInfo.environment["BANDEJA_DEMO"] == "1"
     }
 }

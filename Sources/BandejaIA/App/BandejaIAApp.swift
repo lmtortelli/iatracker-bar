@@ -4,7 +4,7 @@ import SwiftUI
 @main
 struct BandejaIAApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var state = AppState.bootstrap()
+    @StateObject private var state = AppState.shared
 
     var body: some Scene {
         MenuBarExtra {
@@ -25,9 +25,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #if DEBUG
         if let directory = Snapshot.outputDirectory {
             Task { @MainActor in
-                Snapshot.run(state: AppState.bootstrap(), to: directory)
+                Snapshot.run(state: AppState.bootstrap(demo: true), to: directory)
             }
+            return
         }
         #endif
+
+        Task { @MainActor in
+            let state = AppState.shared
+            state.startCollecting()
+            if !state.isDemo { OnboardingWindow.showIfNeeded() }
+        }
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        MainActor.assumeIsolated {
+            AppState.shared.monitor?.shutdown()
+        }
     }
 }

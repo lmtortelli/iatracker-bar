@@ -8,4 +8,7 @@ TestRunner.run([
     ("ReportAggregator", ReportAggregatorTests.all),
     ("GeminiQuota", GeminiQuotaTests.all),
     ("AppDatabase", DatabaseTests.all),
+    ("ActivityClassifier", ActivityClassifierTests.all),
+    ("SessionTracker", SessionTrackerTests.all),
+    ("ProjectResolver", ProjectResolverTests.all),
 ])

@@ -61,6 +61,8 @@ enum Preferences {
         static let geminiDailyQuota = "geminiDailyQuota"
         static let idleMinutes = "idleMinutes"
         static let claudeCredentialSource = "claudeCredentialSource"
+        static let paused = "paused"
+        static let onboardingCompleted = "onboardingCompleted"
     }
 
     static func registerDefaults() {

@@ -77,6 +77,16 @@ public final class AppDatabase: Sendable {
         try writer.write { db in try session.update(db) }
     }
 
+    /// Altera só o fim da sessão (`nil` reabre), sem sobrescrever projeto escolhido em outro lugar.
+    /// Retorna `false` se a sessão não existe mais.
+    @discardableResult
+    public func setSessionEnd(id: Int64, at end: Date?) throws -> Bool {
+        try writer.write { db in
+            try db.execute(sql: "UPDATE session SET ended_at = ? WHERE id = ?", arguments: [end, id])
+            return db.changesCount > 0
+        }
+    }
+
     public func deleteSession(id: Int64) throws {
         _ = try writer.write { db in try Session.deleteOne(db, key: id) }
     }
@@ -89,6 +99,17 @@ public final class AppDatabase: Sendable {
                 .filter(Column("ended_at") == nil || Column("ended_at") > start)
                 .order(Column("started_at"))
                 .fetchAll(db)
+        }
+    }
+
+    /// Projeto da sessão mais recente que tem projeto (regra "último projeto usado").
+    public func lastProjectId() throws -> Int64? {
+        try writer.read { db in
+            try Session
+                .filter(Column("project_id") != nil)
+                .order(Column("started_at").desc)
+                .fetchOne(db)?
+                .projectId
         }
     }
 

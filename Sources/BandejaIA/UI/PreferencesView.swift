@@ -1,28 +1,14 @@
 import AppKit
-import ApplicationServices
 import BandejaIACore
 import ServiceManagement
 import SwiftUI
 
-/// Janela de Preferências gerenciada à mão: em app sem Dock, a cena `Settings`
-/// abre atrás das outras janelas e o seletor `showSettingsWindow:` não funciona no macOS 14+.
 @MainActor
 enum PreferencesWindow {
-    private static var window: NSWindow?
-
     static func show(state: AppState) {
-        if window == nil {
-            let hosting = NSHostingController(rootView: PreferencesView().environmentObject(state))
-            let newWindow = NSWindow(contentViewController: hosting)
-            newWindow.title = "Preferências do Bandeja IA"
-            newWindow.styleMask = [.titled, .closable]
-            newWindow.isReleasedWhenClosed = false
-            newWindow.setContentSize(NSSize(width: 520, height: 440))
-            newWindow.center()
-            window = newWindow
+        AuxiliaryWindow.show(id: "preferences", title: "Preferências do Bandeja IA") {
+            PreferencesView().environmentObject(state)
         }
-        NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
     }
 }
 
@@ -246,32 +232,11 @@ private struct ProjectsPane: View {
 // MARK: - Permissões
 
 private struct PermissionsPane: View {
-    @State private var accessibility = AXIsProcessTrusted()
+    @StateObject private var model = PermissionsModel()
 
     var body: some View {
         Form {
-            Section {
-                HStack {
-                    statusDot(accessibility)
-                    VStack(alignment: .leading) {
-                        Text("Acessibilidade")
-                        Text("Identifica o app em foco e o tempo ocioso.")
-                            .font(.caption).foregroundColor(Theme.secondary)
-                    }
-                    Spacer()
-                    Button("Abrir Ajustes") { open("Privacy_Accessibility") }
-                }
-                HStack {
-                    statusDot(nil)
-                    VStack(alignment: .leading) {
-                        Text("Automação (por navegador)")
-                        Text("Lê a URL da aba ativa no Safari, Chrome, Arc, Brave e Edge. O macOS pergunta na primeira leitura.")
-                            .font(.caption).foregroundColor(Theme.secondary)
-                    }
-                    Spacer()
-                    Button("Abrir Ajustes") { open("Privacy_Automation") }
-                }
-            }
+            PermissionsList(model: model)
             Section {
                 Text("O Bandeja IA registra só horários, origem e projeto. Nenhum conteúdo de conversa é lido ou salvo.")
                     .font(.caption)
@@ -279,21 +244,9 @@ private struct PermissionsPane: View {
             }
         }
         .formStyle(.grouped)
+        .onAppear { model.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            accessibility = AXIsProcessTrusted()
-        }
-    }
-
-    private func statusDot(_ granted: Bool?) -> some View {
-        Circle()
-            .fill(granted == nil ? Theme.statusPaused : (granted == true ? Theme.statusActive : Theme.error))
-            .frame(width: 8, height: 8)
-            .accessibilityLabel(granted == nil ? "Status desconhecido" : (granted == true ? "Concedida" : "Não concedida"))
-    }
-
-    private func open(_ anchor: String) {
-        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?\(anchor)") {
-            NSWorkspace.shared.open(url)
+            model.refresh()
         }
     }
 }

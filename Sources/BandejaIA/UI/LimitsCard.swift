@@ -13,7 +13,7 @@ struct LimitsCard: View {
                 .foregroundColor(Theme.secondary)
 
             if limits.isEmpty {
-                Text("Consultando limites…")
+                Text("Consulta de limites ainda não disponível nesta versão.")
                     .font(.system(size: 12))
                     .foregroundColor(Theme.secondary)
             }

@@ -13,8 +13,8 @@ App de barra de menus para macOS que mede tempo de uso de assistentes de IA, atr
 ```bash
 swift build                              # compila tudo
 swift run bandeja-tests                  # testes (mini-harness; sai com 1 se falhar)
-swift run BandejaIA                      # roda o app (modo demonstração na Fase 1)
-swift run BandejaIA --no-demo            # banco real em ~/Library/Application Support/BandejaIA
+swift run BandejaIA                      # roda o app com coleta real (~/Library/Application Support/BandejaIA)
+swift run BandejaIA --demo               # dados fictícios do protótipo, banco em memória
 swift run BandejaIA --snapshot <pasta>   # DEBUG: salva PNGs do popover (claro/escuro) e sai
 scripts/build-app.sh [debug|release]     # gera build/BandejaIA.app
 ```
@@ -26,15 +26,16 @@ Sources/
   BandejaIACore/        lógica pura, sem AppKit — tudo que tem teste mora aqui
     Models/             Models.swift (registros GRDB + LimitWindow/ProviderLimits)
     Storage/            Database.swift (AppDatabase), Migrations.swift
+    Activity/           ActivityClassifier.swift (foco/URL → operador), SessionTracker.swift (máquina de sessões)
     Providers/          GeminiQuota.swift · (Fase 3/4) parsers de log e de limites, UsageProvider
-    Projects/           (Fase 3) ProjectResolver.swift
+    Projects/           ProjectResolver.swift (domínio, título, último usado; cwd na Fase 3)
     Report/             ReportAggregator.swift (Hoje, semana, 30 dias, por projeto)
     Support/            Formatters.swift, DemoData.swift
   BandejaIA/            app SwiftUI/AppKit
     App/                BandejaIAApp.swift, AppState.swift, MenuBarLabel.swift
-    Collector/          (Fase 2/3) ActivityMonitor, BrowserTabReader, IdleDetector, LogWatcher
-    UI/                 Theme, PopoverView, TodayView, ReportView, LimitsCard, SessionRow, PreferencesView
-    Support/            Preferences.swift, Keychain.swift, Snapshot.swift (DEBUG)
+    Collector/          ActivityMonitor, BrowserTabReader, IdleDetector (+ WindowTitleReader) · (Fase 3) LogWatcher
+    UI/                 Theme, PopoverView, TodayView, ReportView, LimitsCard, SessionRow, PreferencesView, PermissionsView
+    Support/            Preferences.swift, Permissions.swift, Keychain.swift, Snapshot.swift (DEBUG)
 Tests/
   BandejaIATests/       executável `bandeja-tests` (main.swift + Harness.swift + *Tests.swift)
   Fixtures/             JSON/JSONL de exemplo anonimizados (acesso via Bundle.module)
@@ -78,6 +79,11 @@ Adicionar um operador novo = nova implementação; nenhum outro arquivo deve mud
   - Terminais (Terminal, iTerm2, Warp, Ghostty, VS Code) → não decidir pela janela; usar LogWatcher.
 - Ociosidade: `CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: .null)` > 120 s encerra a sessão (fim = último evento).
 - Trocar de origem encerra a sessão atual e abre outra. Sessões < 30 s são descartadas.
+- Voltar à mesma origem em até 60 s **retoma** a sessão anterior (evita picotar ao alternar janelas).
+- O tracker altera só `ended_at` (`AppDatabase.setSessionEnd`), para não sobrescrever o projeto escolhido manualmente.
+- Repouso, tela bloqueada e saída do app encerram a sessão. Sessões órfãs (app morto) são fechadas no próximo início usando o `lastHeartbeat` gravado a cada tick.
+- Ociosidade não exige permissão; Acessibilidade é opcional (só para título da janela do app Claude).
+- Assinatura ad hoc muda a cada build: o macOS pode pedir as permissões de Automação de novo após recompilar.
 
 ## Logs locais (LogWatcher)
 - Observar com FSEvents/`DispatchSource` (sem polling). Guardar offset lido por arquivo.
