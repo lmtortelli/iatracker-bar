@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:oklch(0.95 0.005 260);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",sans-serif;-webkit-font-smoothing:antialiased;color:oklch(0.22 0.01 260)}
+a{color:oklch(0.5 0.14 250)}a:hover{color:oklch(0.4 0.14 250)}
+button{font-family:inherit}
+</style>
+</helmet>
+<section style="padding:48px;display:flex;flex-direction:column;gap:28px">
+  <div style="display:flex;flex-direction:column;gap:6px;max-width:760px">
+    <div style="font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:oklch(0.5 0.01 260)">Rodada 2 · macOS · Claude + Gemini</div>
+    <div style="font-size:28px;font-weight:600;letter-spacing:-.01em">Bandeja IA: lista nativa</div>
+    <div style="font-size:15px;line-height:1.5;color:oklch(0.42 0.01 260);text-wrap:pretty">Base 1a com os limites reais de cada operador: janela de 5 h e semanal no Claude, cota diária contada localmente no Gemini. Projeto atribuído automaticamente pela pasta do Claude Code / Gemini CLI.</div>
+  </div>
+
+  <div id="2a" style="display:flex;flex-direction:column;gap:12px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font:600 12px 'JetBrains Mono',monospace;background:oklch(0.22 0.01 260);color:white;padding:3px 8px;border-radius:6px">2a</span>
+      <span style="font-size:15px;font-weight:600">Lista nativa</span>
+      <span style="font-size:13px;color:oklch(0.5 0.01 260)">evolução de 1a</span>
+    </div>
+    <div style="width:420px;height:900px;border-radius:14px;overflow:hidden;position:relative;background:oklch(0.74 0.05 235);box-shadow:0 1px 3px rgba(0,0,0,.15)">
+      <div style="height:28px;display:flex;align-items:center;justify-content:flex-end;gap:14px;padding:0 12px;background:rgba(255,255,255,.5);backdrop-filter:blur(20px);font-size:13px;font-weight:500">
+        <div style="flex:none;display:flex;align-items:center;gap:6px;background:rgba(0,0,0,.13);padding:2px 8px;border-radius:5px">
+          <span style="width:8px;height:8px;border-radius:50%;background:{{ activeDot }}"></span>
+          <span style="width:22px;height:5px;border-radius:3px;background:rgba(0,0,0,.18);overflow:hidden;display:flex"><span style="width:{{ mb.w }};background:{{ mb.color }}"></span></span>
+          <span style="font:500 12px 'JetBrains Mono',monospace;white-space:nowrap">{{ mb.label }} {{ mb.pct }}</span>
+        </div>
+        <span>Seg 5 out</span><span>{{ clock }}</span>
+      </div>
+
+      <div style="position:absolute;top:34px;right:30px;width:360px;background:rgba(247,247,249,.94);backdrop-filter:blur(30px);border-radius:12px;border:1px solid rgba(0,0,0,.08);box-shadow:0 12px 40px rgba(0,0,0,.22);overflow:hidden">
+        <div style="padding:10px 12px 8px;display:flex;background:rgba(0,0,0,.02)">
+          <div style="flex:1;display:flex;background:rgba(0,0,0,.06);border-radius:7px;padding:2px">
+            <button onClick="{{ goHoje }}" style="flex:1;border:0;border-radius:5px;padding:4px;font-size:12px;font-weight:500;cursor:pointer;background:{{ hojeBg }};color:inherit;box-shadow:{{ hojeSh }}">Hoje</button>
+            <button onClick="{{ goRel }}" style="flex:1;border:0;border-radius:5px;padding:4px;font-size:12px;font-weight:500;cursor:pointer;background:{{ relBg }};color:inherit;box-shadow:{{ relSh }}">Relatório</button>
+          </div>
+        </div>
+
+        <sc-if value="{{ isHoje }}" hint-placeholder-val="{{ true }}">
+          <div style="padding:4px 12px 12px;display:flex;flex-direction:column;gap:12px">
+            <sc-if value="{{ running }}" hint-placeholder-val="{{ true }}">
+              <div style="background:white;border-radius:9px;padding:10px;display:flex;flex-direction:column;gap:8px;border:1px solid rgba(0,0,0,.06)">
+                <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:oklch(0.5 0.01 260);text-transform:uppercase;letter-spacing:.05em"><span style="width:6px;height:6px;border-radius:50%;background:oklch(0.65 0.17 150)"></span>Detectando agora</div>
+                <div style="display:flex;align-items:center;gap:10px">
+                  <div style="width:30px;height:30px;border-radius:8px;background:{{ act.color }};color:white;display:grid;place-items:center;font-weight:600;font-size:14px">{{ act.initial }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:14px;font-weight:600">{{ act.name }}</div>
+                    <div style="font-size:12px;color:oklch(0.5 0.01 260)">{{ act.src }}</div>
+                  </div>
+                  <div style="font:500 17px 'JetBrains Mono',monospace">{{ elapsedFmt }}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;min-width:0">
+                  <button onClick="{{ cycleProject }}" style="flex:none;white-space:nowrap;border:1px solid rgba(0,0,0,.1);background:oklch(0.97 0.005 260);border-radius:6px;padding:3px 8px;font-size:12px;cursor:pointer;display:flex;gap:6px;align-items:center;color:inherit">Projeto: <strong style="font-weight:600">{{ act.project }}</strong> ▾</button>
+                  <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:400 10px 'JetBrains Mono',monospace;color:oklch(0.5 0.01 260)">{{ act.projSrc }}</span>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ paused }}" hint-placeholder-val="{{ false }}">
+              <div style="background:white;border-radius:9px;padding:12px;font-size:13px;color:oklch(0.45 0.01 260);border:1px dashed rgba(0,0,0,.15)">Detecção pausada. Nenhum uso está sendo registrado.</div>
+            </sc-if>
+
+            <div style="display:flex;flex-direction:column;gap:10px;background:white;border-radius:9px;padding:10px;border:1px solid rgba(0,0,0,.06)">
+              <div style="font-size:12px;font-weight:600;color:oklch(0.45 0.01 260)">Limites</div>
+              <sc-for list="{{ limits }}" as="p" hint-placeholder-count="2">
+                <div style="display:flex;flex-direction:column;gap:7px;padding-top:8px;border-top:1px solid rgba(0,0,0,.06)">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="width:8px;height:8px;border-radius:2px;background:{{ p.color }}"></span>
+                    <span style="font-size:13px;font-weight:600;flex:1">{{ p.name }}</span>
+                    <span style="font:500 10px 'JetBrains Mono',monospace;padding:2px 6px;border-radius:4px;background:{{ p.srcBg }};color:{{ p.srcFg }}">{{ p.srcLabel }}</span>
+                  </div>
+                  <sc-for list="{{ p.wins }}" as="w" hint-placeholder-count="2">
+                    <div style="display:grid;grid-template-columns:116px 1fr 40px;gap:10px;align-items:center">
+                      <div style="display:flex;flex-direction:column;gap:1px;min-width:0">
+                        <span style="font-size:12px">{{ w.label }}</span>
+                        <span style="font:400 10px 'JetBrains Mono',monospace;color:oklch(0.5 0.01 260);white-space:nowrap">{{ w.detail }}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:3px">
+                        <div style="height:5px;border-radius:3px;background:rgba(0,0,0,.08)"><div style="height:100%;border-radius:3px;width:{{ w.w }};background:{{ w.color }}"></div></div>
+                        <span style="font:400 10px 'JetBrains Mono',monospace;color:oklch(0.5 0.01 260);white-space:nowrap">↻ {{ w.reset }}</span>
+                      </div>
+                      <span style="font:600 12px 'JetBrains Mono',monospace;text-align:right;color:{{ w.text }}">{{ w.pct }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+
+            <div style="display:flex;justify-content:space-between;align-items:baseline">
+              <span style="font-size:12px;font-weight:600;color:oklch(0.45 0.01 260)">Hoje</span>
+              <span style="font:600 13px 'JetBrains Mono',monospace">{{ todayFmt }}</span>
+            </div>
+            <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;gap:2px">
+              <sc-for list="{{ byTool }}" as="t" hint-placeholder-count="2"><div style="flex:{{ t.mins }};background:{{ t.color }}"></div></sc-for>
+            </div>
+            <div style="display:flex;gap:14px;font-size:11px;color:oklch(0.45 0.01 260)">
+              <sc-for list="{{ byTool }}" as="t" hint-placeholder-count="2">
+                <span style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:2px;background:{{ t.color }}"></span>{{ t.name }} <span style="font-family:'JetBrains Mono',monospace">{{ t.fmt }}</span></span>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <sc-for list="{{ sessionsList }}" as="s" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(0,0,0,.06)">
+                  <div style="width:22px;height:22px;border-radius:6px;background:{{ s.color }};color:white;display:grid;place-items:center;font-size:11px;font-weight:600">{{ s.initial }}</div>
+                  <div style="flex:1;min-width:0">
+                    <div style="font-size:13px;font-weight:500">{{ s.src }}</div>
+                    <div style="font-size:11px;color:oklch(0.5 0.01 260)">{{ s.project }} · {{ s.range }}</div>
+                  </div>
+                  <span style="font:500 12px 'JetBrains Mono',monospace;color:oklch(0.35 0.01 260)">{{ s.fmt }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isRel }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:4px 12px 12px;display:flex;flex-direction:column;gap:14px">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="display:flex;gap:4px">
+                <button onClick="{{ setSem }}" style="border:0;border-radius:5px;padding:3px 8px;font-size:12px;cursor:pointer;background:{{ semBg }};color:{{ semFg }}">Semana</button>
+                <button onClick="{{ setMes }}" style="border:0;border-radius:5px;padding:3px 8px;font-size:12px;cursor:pointer;background:{{ mesBg }};color:{{ mesFg }}">30 dias</button>
+              </div>
+              <span style="font:600 13px 'JetBrains Mono',monospace">{{ rangeTotalFmt }}</span>
+            </div>
+            <div style="height:120px;display:flex;align-items:flex-end;gap:{{ barGap }}">
+              <sc-for list="{{ bars }}" as="b" hint-placeholder-count="7">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end">
+                  <div style="width:100%;display:flex;flex-direction:column-reverse;border-radius:3px;overflow:hidden;height:{{ b.h }}">
+                    <sc-for list="{{ b.segs }}" as="g"><div style="flex:{{ g.mins }};background:{{ g.color }}"></div></sc-for>
+                  </div>
+                  <span style="font-size:10px;color:oklch(0.5 0.01 260);height:12px">{{ b.label }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column">
+              <div style="display:grid;grid-template-columns:1fr 64px 64px;gap:10px;font-size:11px;color:oklch(0.5 0.01 260);padding-bottom:4px"><span>Por operador</span><span style="text-align:right">Sessões</span><span style="text-align:right">Tempo</span></div>
+              <sc-for list="{{ rangeByTool }}" as="t" hint-placeholder-count="2">
+                <div style="display:grid;grid-template-columns:1fr 64px 64px;gap:10px;align-items:center;padding:7px 0;border-top:1px solid rgba(0,0,0,.06);font-size:13px">
+                  <span style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:2px;background:{{ t.color }}"></span>{{ t.name }}</span>
+                  <span style="font:500 12px 'JetBrains Mono',monospace;text-align:right;color:oklch(0.45 0.01 260)">{{ t.sessions }}</span>
+                  <span style="font:500 12px 'JetBrains Mono',monospace;text-align:right">{{ t.fmt }}</span>
+                </div>
+              </sc-for>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div style="font-size:11px;color:oklch(0.5 0.01 260)">Por projeto</div>
+              <sc-for list="{{ rangeByProject }}" as="p" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;gap:5px">
+                  <div style="display:flex;justify-content:space-between;font-size:13px"><span>{{ p.name }}</span><span style="font:500 12px 'JetBrains Mono',monospace">{{ p.fmt }}</span></div>
+                  <div style="display:flex;height:5px;gap:2px;border-radius:3px;overflow:hidden;width:{{ p.w }}">
+                    <sc-for list="{{ p.segs }}" as="g"><div style="flex:{{ g.mins }};background:{{ g.color }}"></div></sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </sc-if>
+
+        <div style="display:flex;justify-content:space-between;padding:8px 12px;border-top:1px solid rgba(0,0,0,.08);font-size:12px">
+          <button onClick="{{ togglePause }}" style="border:0;background:none;cursor:pointer;font-size:12px;color:inherit;padding:2px 0">{{ pauseLabel }}</button>
+          <span style="color:oklch(0.5 0.01 260)">Preferências…</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;menuBarMetric&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;claude5h&quot;,&quot;options&quot;:[&quot;claude5h&quot;,&quot;claudeSemana&quot;,&quot;gemini&quot;],&quot;tsType&quot;:&quot;string&quot;},&quot;geminiDailyQuota&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:100,&quot;min&quot;:10,&quot;max&quot;:1000,&quot;step&quot;:10,&quot;tsType&quot;:&quot;number&quot;}}">
+const TOOLS = {
+  claude: { name: 'Claude', color: 'oklch(0.66 0.13 45)' },
+  gemini: { name: 'Gemini', color: 'oklch(0.6 0.15 300)' }
+};
+const IDS = ['claude', 'gemini'];
+const SRCS = {
+  'claude-web': { t: 'claude', label: 'claude.ai · Safari' },
+  'claude-app': { t: 'claude', label: 'App Claude' },
+  'claude-code': { t: 'claude', label: 'Claude Code · Terminal' },
+  'gemini-web': { t: 'gemini', label: 'gemini.google.com · Chrome' },
+  'gemini-cli': { t: 'gemini', label: 'Gemini CLI · Terminal' }
+};
+const PROJECTS = ['Site Lumen', 'App Finanças', 'Pessoal'];
+const PSHARE = [0.48, 0.37, 0.15];
+const SESSIONS = [
+  { src: 'gemini-web', p: 'Pessoal', s: 8 * 60 + 42, m: 18, n: 11 },
+  { src: 'claude-code', p: 'App Finanças', s: 9 * 60 + 30, m: 72 },
+  { src: 'claude-web', p: 'Site Lumen', s: 11 * 60 + 5, m: 41 },
+  { src: 'gemini-cli', p: 'Site Lumen', s: 12 * 60 + 40, m: 22, n: 64 },
+  { src: 'claude-app', p: 'Pessoal', s: 13 * 60 + 10, m: 28 }
+];
+const ACTIVE = { src: 'claude-code', cwd: '~/dev/site-lumen', proj: 0, start: 14 * 60 + 20 };
+function rnd(seed) { const x = Math.sin(seed * 9301 + 49297) * 233280; return x - Math.floor(x); }
+const DAYS = Array.from({ length: 30 }, (_, d) => {
+  const weekend = (d + 1) % 7 >= 5;
+  return { claude: Math.round(rnd(d * 7) * (weekend ? 30 : 160)), gemini: Math.round(rnd(d * 7 + 3) * (weekend ? 15 : 55)), cs: 2 + Math.round(rnd(d) * 4), gs: 1 + Math.round(rnd(d + 9) * 3) };
+});
+const fmt = m => { m = Math.round(m); const h = Math.floor(m / 60), mm = m % 60; return h ? `${h}h ${String(mm).padStart(2, '0')}m` : `${mm}m`; };
+const hm = m => `${String(Math.floor(m / 60) % 24).padStart(2, '0')}:${String(Math.floor(m % 60)).padStart(2, '0')}`;
+const winColor = p => p >= 100 ? 'oklch(0.6 0.19 25)' : p >= 80 ? 'oklch(0.74 0.15 70)' : 'oklch(0.62 0.13 150)';
+
+class Component extends DCLogic {
+  state = { elapsed: 754, paused: false, proj: null, tab: 'hoje', range: 'semana' };
+  componentDidMount() { this.iv = setInterval(() => { if (!this.state.paused) this.setState(s => ({ elapsed: s.elapsed + 1 })); }, 1000); }
+  componentWillUnmount() { clearInterval(this.iv); }
+
+  renderVals() {
+    const st = this.state, running = !st.paused, P = this.props;
+    const activeMin = st.elapsed / 60, nowMin = ACTIVE.start + activeMin;
+    const manual = st.proj !== null;
+    const activeProject = PROJECTS[manual ? st.proj : ACTIVE.proj];
+
+    const today = { claude: 0, gemini: 0 }, sess = { claude: 0, gemini: 0 };
+    SESSIONS.forEach(s => { today[SRCS[s.src].t] += s.m; sess[SRCS[s.src].t]++; });
+    today.claude += activeMin; sess.claude++;
+    const todayTotal = today.claude + today.gemini;
+    const byTool = IDS.map(id => ({ ...TOOLS[id], mins: today[id], fmt: fmt(today[id]) }));
+
+    const all = [...SESSIONS, { src: ACTIVE.src, p: activeProject, s: ACTIVE.start, m: activeMin, live: true }];
+    const sessionsList = all.slice().reverse().map(s => { const T = TOOLS[SRCS[s.src].t]; return {
+      color: T.color, initial: T.name[0], src: SRCS[s.src].label, project: s.p,
+      range: s.live ? `${hm(s.s)} – agora` : `${hm(s.s)}–${hm(s.s + s.m)}`, fmt: fmt(s.m) }; });
+
+    // limites
+    const c5 = Math.round(52 + activeMin * 0.9), cw = Math.round(38 + activeMin * 0.15);
+    const gQuota = P.geminiDailyQuota ?? 100;
+    const gPrompts = SESSIONS.filter(s => s.src === 'gemini-web').reduce((a, s) => a + s.n, 0) + 27;
+    const gCli = SESSIONS.filter(s => s.src === 'gemini-cli').reduce((a, s) => a + s.n, 0) + 148;
+    const gp = Math.round(gPrompts / gQuota * 100), gc = Math.round(gCli / 1000 * 100);
+    const W = (label, pct, detail, reset) => ({ label, pct: pct + '%', w: Math.min(100, pct) + '%', color: winColor(pct), text: pct >= 80 ? winColor(pct) : 'inherit', detail, reset: pct >= 100 ? 'limite atingido' : reset });
+    const limits = [
+      { ...TOOLS.claude, srcLabel: 'OFICIAL', srcBg: 'oklch(0.94 0.04 150)', srcFg: 'oklch(0.4 0.1 150)', wins: [
+        W('Sessão 5 h', c5, 'desde 11:05', 'renova 16:05'),
+        W('Semanal', cw, 'todos os modelos', 'renova Qui 09:00') ] },
+      { ...TOOLS.gemini, srcLabel: 'ESTIMADO', srcBg: 'rgba(0,0,0,.06)', srcFg: 'oklch(0.45 0.01 260)', wins: [
+        W('App · diária', gp, `${gPrompts} de ${gQuota} prompts`, 'renova 04:00'),
+        W('CLI · diária', gc, `${gCli} de 1000 req.`, 'renova 04:00') ] }
+    ];
+    const metric = P.menuBarMetric ?? 'claude5h';
+    const mbSrc = metric === 'claudeSemana' ? ['Claude sem.', cw] : metric === 'gemini' ? ['Gemini', gp] : ['Claude 5h', c5];
+    const mb = { label: mbSrc[0], pct: mbSrc[1] + '%', w: Math.min(100, mbSrc[1]) + '%', color: winColor(mbSrc[1]) };
+
+    // relatório
+    const dayData = DAYS.slice(); dayData[29] = { ...today, cs: sess.claude, gs: sess.gemini };
+    const sem = st.range === 'semana';
+    const weekLabels = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
+    const rangeDays = sem ? [dayData[29], null, null, null, null, null, null] : dayData;
+    const totOf = d => d ? d.claude + d.gemini : 0;
+    const agg = { claude: 0, gemini: 0 }, aggS = { claude: 0, gemini: 0 };
+    rangeDays.forEach(d => { if (!d) return; agg.claude += d.claude; agg.gemini += d.gemini; aggS.claude += d.cs; aggS.gemini += d.gs; });
+    const rangeTotal = agg.claude + agg.gemini;
+    const maxDay = Math.max(...rangeDays.map(totOf), 1);
+    const bars = rangeDays.map((d, i) => ({
+      label: sem ? weekLabels[i] : (i % 5 === 0 ? String(i + 1) : ''),
+      h: (d ? totOf(d) / maxDay * 100 : 2) + '%',
+      segs: d ? IDS.map(id => ({ mins: d[id], color: TOOLS[id].color })) : [{ mins: 1, color: 'rgba(0,0,0,.08)' }]
+    }));
+    const rangeByTool = IDS.map(id => ({ ...TOOLS[id], fmt: fmt(agg[id]), sessions: aggS[id] }));
+    const rangeByProject = PROJECTS.map((p, i) => ({
+      name: p, fmt: fmt(rangeTotal * PSHARE[i]), w: (PSHARE[i] / PSHARE[0] * 100) + '%',
+      segs: IDS.map((id, j) => ({ mins: agg[id] * (1 + ((i + j) % 2) * 0.5), color: TOOLS[id].color }))
+    }));
+
+    const tabBg = on => on ? 'white' : 'transparent', tabSh = on => on ? '0 1px 2px rgba(0,0,0,.15)' : 'none';
+    const ss = st.elapsed % 60, mm = Math.floor(st.elapsed / 60) % 60, hh = Math.floor(st.elapsed / 3600);
+    return {
+      running, paused: st.paused, clock: hm(nowMin), mb, limits,
+      activeDot: running ? 'oklch(0.68 0.17 150)' : 'oklch(0.6 0.01 260)',
+      act: { ...TOOLS.claude, initial: 'C', src: SRCS[ACTIVE.src].label, project: activeProject, projSrc: manual ? 'manual' : `auto · ${ACTIVE.cwd}` },
+      elapsedFmt: `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`,
+      todayFmt: fmt(todayTotal), byTool, sessionsList,
+      cycleProject: () => this.setState(s => ({ proj: ((s.proj ?? ACTIVE.proj) + 1) % PROJECTS.length })),
+      togglePause: () => this.setState(s => ({ paused: !s.paused })),
+      pauseLabel: st.paused ? '▶ Retomar detecção' : '❙❙ Pausar detecção',
+      isHoje: st.tab === 'hoje', isRel: st.tab === 'rel',
+      goHoje: () => this.setState({ tab: 'hoje' }), goRel: () => this.setState({ tab: 'rel' }),
+      hojeBg: tabBg(st.tab === 'hoje'), relBg: tabBg(st.tab === 'rel'), hojeSh: tabSh(st.tab === 'hoje'), relSh: tabSh(st.tab === 'rel'),
+      setSem: () => this.setState({ range: 'semana' }), setMes: () => this.setState({ range: 'mes' }),
+      semBg: sem ? 'oklch(0.3 0.01 260)' : 'rgba(0,0,0,.06)', semFg: sem ? 'white' : 'inherit',
+      mesBg: !sem ? 'oklch(0.3 0.01 260)' : 'rgba(0,0,0,.06)', mesFg: !sem ? 'white' : 'inherit',
+      rangeTotalFmt: fmt(rangeTotal), bars, barGap: sem ? '8px' : '2px', rangeByTool, rangeByProject
+    };
+  }
+}
+</script>
+</body>
+</html>
