@@ -78,6 +78,14 @@ public enum ActivityClassifier {
         ("aistudio.google.com", .gemini),
     ]
 
+    /// Remove a detecção por foco do app Claude quando o mesmo uso já está sendo contado
+    /// pelos logs do Claude Code rodando dentro do app (evita contar o tempo duas vezes).
+    public static func deduplicate(_ detection: Detection?, openSessions: [Session]) -> Detection? {
+        guard let detection, detection.source == "App Claude" else { return detection }
+        let desktopCode = ClaudeCodeLogParser.sourceLabel(entrypoint: "claude-desktop")
+        return openSessions.contains { $0.source == desktopCode } ? nil : detection
+    }
+
     public static func classify(_ snapshot: FocusSnapshot) -> Detection? {
         guard let bundleID = snapshot.bundleID else { return nil }
 

@@ -42,6 +42,7 @@ struct ProjectMenuButton: View {
     let projectName: String
     let projects: [Project]
     let onSelect: (Project) -> Void
+    let onCreate: (String) -> Void
 
     var body: some View {
         Button {
@@ -71,12 +72,25 @@ struct ProjectMenuButton: View {
             item.state = project.name == projectName ? .on : .off
             menu.addItem(item)
         }
-        if projects.isEmpty {
-            let empty = NSMenuItem(title: "Nenhum projeto cadastrado", action: nil, keyEquivalent: "")
-            empty.isEnabled = false
-            menu.addItem(empty)
-        }
+        if !projects.isEmpty { menu.addItem(.separator()) }
+        menu.addItem(ClosureMenuItem(title: "Novo projeto…") { askNewProject() })
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
+    }
+
+    private func askNewProject() {
+        let alert = NSAlert()
+        alert.messageText = "Novo projeto"
+        alert.informativeText = "A sessão atual passa a contar para este projeto."
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
+        field.placeholderString = "Nome do projeto"
+        alert.accessoryView = field
+        alert.addButton(withTitle: "Criar")
+        alert.addButton(withTitle: "Cancelar")
+        alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
+        if alert.runModal() == .alertFirstButtonReturn {
+            onCreate(field.stringValue)
+        }
     }
 }
 

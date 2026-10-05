@@ -148,6 +148,8 @@ public struct Counter: Codable, Equatable, Identifiable, Sendable, FetchableReco
     public enum Kind: String, Codable, Sendable, DatabaseValueConvertible {
         case webPrompts = "web_prompts"
         case cliRequests = "cli_requests"
+        /// Tokens do Claude Code por hora (`day` = `yyyy-MM-ddTHH` em UTC); base da estimativa de 5 h.
+        case claudeCodeTokens = "claude_code_tokens"
     }
 
     public var id: Int64?
@@ -203,6 +205,26 @@ public struct LimitSnapshot: Codable, Equatable, Identifiable, Sendable, Fetchab
 
     public mutating func didInsert(_ inserted: InsertionSuccess) {
         id = inserted.rowID
+    }
+}
+
+/// Até onde um arquivo de log já foi lido e qual sessão ele está alimentando.
+public struct LogCursor: Codable, Equatable, Sendable, FetchableRecord, PersistableRecord {
+    public static let databaseTableName = "log_cursor"
+    public static let databaseColumnDecodingStrategy = SnakeCaseRecord.decoding
+    public static let databaseColumnEncodingStrategy = SnakeCaseRecord.encoding
+
+    public var path: String
+    /// Bytes lidos (JSONL) ou entradas processadas (JSON em array).
+    public var offset: Int64
+    public var sessionId: Int64?
+    public var lastEventAt: Date?
+
+    public init(path: String, offset: Int64 = 0, sessionId: Int64? = nil, lastEventAt: Date? = nil) {
+        self.path = path
+        self.offset = offset
+        self.sessionId = sessionId
+        self.lastEventAt = lastEventAt
     }
 }
 

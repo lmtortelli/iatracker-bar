@@ -21,8 +21,9 @@ final class AppState: ObservableObject {
 
     let database: AppDatabase
     let isDemo: Bool
-    /// Coletor real; `nil` no modo demonstração.
+    /// Coletores reais; `nil` no modo demonstração.
     private(set) var monitor: ActivityMonitor?
+    private(set) var logWatcher: LogWatcher?
 
     private let aggregator = ReportAggregator()
     private let logger = Logger(subsystem: "BandejaIA", category: "AppState")
@@ -54,8 +55,13 @@ final class AppState: ObservableObject {
         guard !isDemo, monitor == nil else { return }
         let monitor = ActivityMonitor(database: database, paused: paused)
         monitor.onChange = { [weak self] in self?.reload() }
-        monitor.start()
+        monitor.start() // antes dos logs: fecha sessões órfãs da execução anterior
         self.monitor = monitor
+
+        let logWatcher = LogWatcher(database: database, paused: paused)
+        logWatcher.onChange = { [weak self] in self?.reload() }
+        logWatcher.start()
+        self.logWatcher = logWatcher
     }
 
     static func bootstrap(demo isDemo: Bool) -> AppState {
@@ -152,6 +158,7 @@ final class AppState: ObservableObject {
         guard isDemo else {
             UserDefaults.standard.set(paused, forKey: Preferences.Key.paused)
             monitor?.setPaused(paused)
+            logWatcher?.setPaused(paused)
             return
         }
         if paused, var session = activeSession {
@@ -167,6 +174,19 @@ final class AppState: ObservableObject {
                 startedAt: .now,
                 manualProject: last.manualProject
             ))
+        }
+    }
+
+    /// Cria o projeto (ou reaproveita um de mesmo nome) e atribui à sessão ativa.
+    func createProjectForActiveSession(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        do {
+            let project = try database.project(named: trimmed)
+            reload()
+            setActiveProject(project)
+        } catch {
+            logger.error("Falha ao criar projeto: \(error.localizedDescription, privacy: .public)")
         }
     }
 

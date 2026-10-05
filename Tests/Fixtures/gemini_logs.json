@@ -1,0 +1,6 @@
+[
+  {"sessionId": "g-1", "messageId": 0, "type": "user", "message": "(prompt fictício ignorado)", "timestamp": "2026-10-05T12:30:00.000Z"},
+  {"sessionId": "g-1", "messageId": 1, "type": "user", "message": "(prompt fictício ignorado)", "timestamp": "2026-10-05T12:30:40.000Z"},
+  {"sessionId": "g-1", "messageId": 2, "type": "gemini", "message": "(resposta ignorada)", "timestamp": "2026-10-05T12:30:50.000Z"},
+  {"sessionId": "g-1", "messageId": 3, "type": "user", "message": "(prompt fictício ignorado)", "timestamp": "2026-10-05T12:31:20.000Z"}
+]

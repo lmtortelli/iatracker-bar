@@ -23,6 +23,15 @@ enum ActivityClassifierTests {
             expectEqual(gemini?.source, "gemini.google.com · Chrome")
             expectEqual(ActivityClassifier.classify(snapshot(.edge, "https://aistudio.google.com/prompts"))?.source, "aistudio.google.com · Edge")
         }),
+        ("app Claude não conta em dobro com Claude Code rodando no próprio app", {
+            let app = ActivityClassifier.classify(FocusSnapshot(bundleID: ActivityClassifier.claudeDesktopBundleID))
+            let code = Session(provider: .claude, source: "Claude Code · App Claude", startedAt: date(2026, 10, 5, 9, 0))
+            let terminal = Session(provider: .claude, source: "Claude Code · Terminal", startedAt: date(2026, 10, 5, 9, 0))
+            expect(ActivityClassifier.deduplicate(app, openSessions: [code]) == nil)
+            expectEqual(ActivityClassifier.deduplicate(app, openSessions: [terminal])?.source, "App Claude")
+            let web = ActivityClassifier.classify(snapshot(.safari, "https://claude.ai/"))
+            expectEqual(ActivityClassifier.deduplicate(web, openSessions: [code])?.source, "claude.ai · Safari")
+        }),
         ("ignora outros sites, apps e terminais", {
             expect(ActivityClassifier.classify(snapshot(.safari, "https://google.com/search?q=claude.ai")) == nil)
             expect(ActivityClassifier.classify(snapshot(.safari, "https://notclaude.ai/")) == nil)
@@ -148,23 +157,46 @@ enum ProjectResolverTests {
         ProjectRule(projectId: 1, kind: .domain, pattern: "gemini.google.com"),
         ProjectRule(projectId: 2, kind: .domain, pattern: "claude.ai/project/lumen"),
         ProjectRule(projectId: 3, kind: .title, pattern: "Finanças"),
+        ProjectRule(projectId: 4, kind: .cwd, pattern: "~/dev/site-lumen"),
     ]
 
-    static func detect(_ url: String?, title: String? = nil) -> Detection {
-        Detection(provider: .claude, source: "x", url: url.flatMap(URL.init(string:)), title: title)
+    static func detect(_ url: String?, title: String? = nil, cwd: String? = nil) -> Detection {
+        Detection(provider: .claude, source: "x", url: url.flatMap(URL.init(string:)), title: title, cwd: cwd)
+    }
+
+    /// Repositórios fictícios: /Users/eu/dev/site-lumen e /Users/eu/dev/financas.
+    static func resolver(last: Int64? = nil) -> ProjectResolver {
+        let repos: Set<String> = ["/Users/eu/dev/site-lumen/.git", "/Users/eu/dev/financas/.git"]
+        return ProjectResolver(rules: rules, lastProjectId: last, homeDirectory: "/Users/eu") { path in
+            GitRoot.find(from: path) { repos.contains($0) }
+        }
     }
 
     static let all: [TestCase] = [
         ("regra de domínio por host e por caminho", {
-            let resolver = ProjectResolver(rules: rules, lastProjectId: 9)
-            expectEqual(resolver.resolve(detect("https://gemini.google.com/app/1")), 1)
-            expectEqual(resolver.resolve(detect("https://claude.ai/project/lumen-site")), 2)
-            expectEqual(resolver.resolve(detect("https://claude.ai/chat/1")), 9)
+            let r = resolver(last: 9)
+            expectEqual(r.resolve(detect("https://gemini.google.com/app/1")), .project(1))
+            expectEqual(r.resolve(detect("https://claude.ai/project/lumen-site")), .project(2))
+            expectEqual(r.resolve(detect("https://claude.ai/chat/1")), .project(9))
         }),
         ("regra de título ignora caixa e acento", {
-            let resolver = ProjectResolver(rules: rules, lastProjectId: nil)
-            expectEqual(resolver.resolve(detect(nil, title: "Planilha de financas — Claude")), 3)
-            expect(resolver.resolve(detect(nil, title: "Outra coisa")) == nil)
+            let r = resolver()
+            expectEqual(r.resolve(detect(nil, title: "Planilha de financas — Claude")), .project(3))
+            expectEqual(r.resolve(detect(nil, title: "Outra coisa")), .none)
+        }),
+        ("cwd sobe até a raiz git e usa a regra", {
+            expectEqual(resolver().resolve(detect(nil, cwd: "/Users/eu/dev/site-lumen/src/app")), .project(4))
+            expectEqual(resolver().resolve(detect(nil, cwd: "~/dev/site-lumen")), .project(4))
+        }),
+        ("cwd sem regra vira projeto com o nome da pasta do repositório", {
+            expectEqual(resolver(last: 9).resolve(detect(nil, cwd: "/Users/eu/dev/financas/api")), .newProject("financas"))
+            // Sem git, usa a própria pasta.
+            expectEqual(resolver().resolve(detect(nil, cwd: "/Users/eu/scratch")), .newProject("scratch"))
+        }),
+        ("regra de pasta não casa com prefixo parcial", {
+            let r = resolver()
+            expect(!r.matches(path: "~/dev/site-lumen", "/Users/eu/dev/site-lumen-2"))
+            expect(r.matches(path: "~/dev/site-lumen/", "/Users/eu/dev/site-lumen"))
         }),
         ("último projeto usado vem do banco", {
             let db = try AppDatabase.inMemory()
@@ -174,6 +206,10 @@ enum ProjectResolverTests {
             try db.insert(Session(provider: .claude, source: "x", projectId: b.id, startedAt: date(2026, 10, 5, 10, 0), endedAt: date(2026, 10, 5, 10, 30)))
             try db.insert(Session(provider: .claude, source: "x", startedAt: date(2026, 10, 5, 11, 0)))
             expectEqual(try db.lastProjectId(), b.id)
+        }),
+        ("abrevia a pasta pessoal", {
+            expectEqual("/Users/eu/dev/x".abbreviatingHome("/Users/eu"), "~/dev/x")
+            expectEqual("/tmp/x".abbreviatingHome("/Users/eu"), "/tmp/x")
         }),
     ]
 }

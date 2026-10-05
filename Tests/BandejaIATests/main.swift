@@ -11,4 +11,6 @@ TestRunner.run([
     ("ActivityClassifier", ActivityClassifierTests.all),
     ("SessionTracker", SessionTrackerTests.all),
     ("ProjectResolver", ProjectResolverTests.all),
+    ("ClaudeCodeLog", ClaudeCodeLogTests.all),
+    ("GeminiCLILog", GeminiCLILogTests.all),
 ])

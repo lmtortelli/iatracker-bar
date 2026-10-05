@@ -51,6 +51,16 @@ enum Migrations {
             try db.create(index: "limit_snapshot_latest", on: "limit_snapshot", columns: ["provider", "window", "fetched_at"])
         }
 
+        // Fase 3: posição lida em cada arquivo de log e a sessão aberta que ele alimenta.
+        migrator.registerMigration("v2_log_cursor") { db in
+            try db.create(table: "log_cursor") { t in
+                t.column("path", .text).primaryKey()
+                t.column("offset", .integer).notNull().defaults(to: 0)
+                t.column("session_id", .integer).references("session", onDelete: .setNull)
+                t.column("last_event_at", .datetime)
+            }
+        }
+
         return migrator
     }
 }

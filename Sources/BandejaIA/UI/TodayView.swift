@@ -127,7 +127,8 @@ private struct ActiveSessionCard: View {
                 ProjectMenuButton(
                     projectName: state.projectName(session.projectId),
                     projects: state.projects,
-                    onSelect: state.setActiveProject
+                    onSelect: state.setActiveProject,
+                    onCreate: state.createProjectForActiveSession
                 )
                 .fixedSize()
 
@@ -143,7 +144,7 @@ private struct ActiveSessionCard: View {
 
     private var attribution: String {
         if session.manualProject { return "manual" }
-        if let cwd = session.cwd { return "auto · \(cwd)" }
+        if let cwd = session.cwd { return "auto · \(cwd.abbreviatingHome())" }
         return "auto"
     }
 }

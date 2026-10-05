@@ -102,6 +102,10 @@ public final class AppDatabase: Sendable {
         }
     }
 
+    public func session(id: Int64) throws -> Session? {
+        try writer.read { db in try Session.fetchOne(db, key: id) }
+    }
+
     /// Projeto da sessão mais recente que tem projeto (regra "último projeto usado").
     public func lastProjectId() throws -> Int64? {
         try writer.read { db in
@@ -118,6 +122,27 @@ public final class AppDatabase: Sendable {
         try writer.read { db in
             try Session.filter(Column("ended_at") == nil).fetchAll(db)
         }
+    }
+
+    /// Pastas de trabalho já vistas (para casar o hash de projeto do Gemini CLI).
+    public func distinctCwds() throws -> [String] {
+        try writer.read { db in
+            try String.fetchAll(db, sql: "SELECT DISTINCT cwd FROM session WHERE cwd IS NOT NULL")
+        }
+    }
+
+    // MARK: Cursores de log
+
+    public func cursor(for path: String) throws -> LogCursor? {
+        try writer.read { db in try LogCursor.fetchOne(db, key: path) }
+    }
+
+    public func cursors() throws -> [LogCursor] {
+        try writer.read { db in try LogCursor.fetchAll(db) }
+    }
+
+    public func save(_ cursor: LogCursor) throws {
+        try writer.write { db in try cursor.save(db) }
     }
 
     // MARK: Contadores

@@ -107,7 +107,10 @@ final class ActivityMonitor {
         // A leitura da aba é assíncrona: a pausa pode ter chegado no meio.
         guard !paused else { return }
 
-        let detection = ActivityClassifier.classify(snapshot)
+        let detection = ActivityClassifier.deduplicate(
+            ActivityClassifier.classify(snapshot),
+            openSessions: (try? database.openSessions()) ?? []
+        )
         perform { database in
             try tracker.observe(
                 detection,
@@ -115,11 +118,7 @@ final class ActivityMonitor {
                 idleSeconds: idle,
                 idleThreshold: threshold,
                 resolveProject: { detection in
-                    let resolver = ProjectResolver(
-                        rules: (try? database.rules()) ?? [],
-                        lastProjectId: try? database.lastProjectId()
-                    )
-                    return resolver.resolve(detection)
+                    (try? ProjectAssigner.projectID(for: detection, in: database)) ?? nil
                 }
             )
         }

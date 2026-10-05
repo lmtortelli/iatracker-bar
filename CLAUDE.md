@@ -27,13 +27,14 @@ Sources/
     Models/             Models.swift (registros GRDB + LimitWindow/ProviderLimits)
     Storage/            Database.swift (AppDatabase), Migrations.swift
     Activity/           ActivityClassifier.swift (foco/URL → operador), SessionTracker.swift (máquina de sessões)
+    Logs/               LogParsers.swift (JSONL do Claude Code, logs.json do Gemini CLI), LogIngestors.swift (cursores + LogSessionWriter)
     Providers/          GeminiQuota.swift · (Fase 3/4) parsers de log e de limites, UsageProvider
-    Projects/           ProjectResolver.swift (domínio, título, último usado; cwd na Fase 3)
+    Projects/           ProjectResolver.swift (cwd → raiz git, domínio, título, último usado), ProjectAssigner, GitRoot
     Report/             ReportAggregator.swift (Hoje, semana, 30 dias, por projeto)
     Support/            Formatters.swift, DemoData.swift
   BandejaIA/            app SwiftUI/AppKit
     App/                BandejaIAApp.swift, AppState.swift, MenuBarLabel.swift
-    Collector/          ActivityMonitor, BrowserTabReader, IdleDetector (+ WindowTitleReader) · (Fase 3) LogWatcher
+    Collector/          ActivityMonitor, BrowserTabReader, IdleDetector (+ WindowTitleReader), LogWatcher (FSEvents)
     UI/                 Theme, PopoverView, TodayView, ReportView, LimitsCard, SessionRow, PreferencesView, PermissionsView
     Support/            Preferences.swift, Permissions.swift, Keychain.swift, Snapshot.swift (DEBUG)
 Tests/
@@ -89,6 +90,14 @@ Adicionar um operador novo = nova implementação; nenhum outro arquivo deve mud
 - Observar com FSEvents/`DispatchSource` (sem polling). Guardar offset lido por arquivo.
 - **Claude Code:** `~/.claude/projects/**/*.jsonl`. Cada linha tem timestamp, `cwd` e uso de tokens. Agrupar mensagens com intervalo < 2 min na mesma sessão. `cwd` → projeto (raiz git).
 - **Gemini CLI:** inspecionar `~/.gemini/` (ex.: `~/.gemini/tmp/*/logs.json`) **antes de implementar** e documentar o formato encontrado. Se insuficiente, habilitar telemetria local do CLI para arquivo (`telemetry.outfile` em `~/.gemini/settings.json`). Contar requisições por dia.
+
+### Implementação (Fase 3)
+- Cursor por arquivo na tabela `log_cursor` (migration `v2_log_cursor`): offset em bytes (JSONL) ou nº de entradas (`logs.json`), mais a sessão aberta e o último evento. Arquivo menor que o offset = recomeça do zero.
+- `LogSessionWriter`: eventos com intervalo < 2 min formam uma sessão; ela fica com `ended_at = NULL` enquanto pode receber eventos e é fechada no último evento pelo `sweep` (a cada 30 s). Sessões < 30 s são descartadas.
+- Primeira leitura importa só os últimos 30 dias. Pausar fecha as sessões de log e, ao retomar, pula o que foi escrito durante a pausa (`fastForward`).
+- Claude Code: ignora `isSidechain` (subagentes); tokens = input + output + criação de cache, deduplicados por `message.id`, gravados por hora em `counter(kind = claude_code_tokens, day = yyyy-MM-ddTHH UTC)`. Rótulo pelo `entrypoint`: `cli` → `Claude Code · Terminal`; `*desktop*` → `Claude Code · App Claude`; `*vscode*`, `*jetbrains*`, `*sdk*`.
+- Gemini CLI: conta entradas `type == "user"` (prompts, não chamadas de API — limite inferior das requisições) por dia de cota. A pasta `tmp/<hash>` é casada com SHA-256 das pastas já conhecidas (cwds do Claude Code e regras `cwd`).
+- Detecção por foco "App Claude" é suprimida enquanto há sessão aberta `Claude Code · App Claude` (mesmo uso, contaria em dobro). Outras sobreposições (ex.: claude.ai no navegador com Claude Code trabalhando em segundo plano) contam as duas sessões.
 
 ## Limites
 ### Claude — fonte "OFICIAL" (endpoint não documentado; tratar como frágil)
