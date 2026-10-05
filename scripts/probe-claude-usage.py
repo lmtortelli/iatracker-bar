@@ -6,8 +6,15 @@
 - Imprime só a estrutura da resposta: chaves, números e datas ISO; outras strings viram "<str>".
 - Com `--save <arquivo>`, grava essa versão anonimizada como fixture de teste.
 
-Uso: python3 scripts/probe-claude-usage.py [--save Tests/Fixtures/claude_usage.json]
+Token informado manualmente (ex.: gerado por `claude setup-token`), em vez do Keychain:
+  --clipboard     lê da área de transferência (não fica no histórico do shell)
+  --ask-token     pede o token com digitação oculta (precisa de um terminal)
+  CLAUDE_USAGE_TOKEN=…  variável de ambiente (fica no histórico; evite)
+
+Uso: python3 scripts/probe-claude-usage.py [--clipboard | --ask-token] [--save Tests/Fixtures/claude_usage.json]
 """
+import getpass
+import os
 import json
 import re
 import subprocess
@@ -57,9 +64,32 @@ def read_oauth(service):
         return None
 
 
+def manual_token():
+    """Token informado pelo usuário, se algum dos modos manuais foi pedido."""
+    if "--clipboard" in sys.argv:
+        value = subprocess.run(["pbpaste"], capture_output=True, text=True).stdout.strip()
+        print("token: lido da área de transferência" + ("" if value else " (vazia!)"))
+        return value or None
+    if "--ask-token" in sys.argv:
+        value = getpass.getpass("Cole o token (não aparece na tela): ").strip()
+        return value or None
+    value = os.environ.get("CLAUDE_USAGE_TOKEN", "").strip()
+    if value:
+        print("token: lido de CLAUDE_USAGE_TOKEN")
+    return value or None
+
+
+def describe(token):
+    """Só o formato do token (prefixo e tamanho), nunca o valor."""
+    prefix = re.match(r"^[a-z]+-[a-z]+-[a-z0-9]+-", token)
+    return f"prefixo {prefix.group(0) if prefix else '(desconhecido)'} · {len(token)} caracteres"
+
+
 def main():
-    token = None
-    for service, modified in keychain_services():
+    token = manual_token()
+    if token:
+        print("token manual:", describe(token))
+    for service, modified in ([] if token else keychain_services()):
         oauth = read_oauth(service)
         if oauth is None:
             print(f"{service}: ilegível (modificado {modified})")
