@@ -27,6 +27,7 @@ Sources/
     Models/             Models.swift (registros GRDB + LimitWindow/ProviderLimits)
     Storage/            Database.swift (AppDatabase), Migrations.swift
     Activity/           ActivityClassifier.swift (foco/URL → operador), SessionTracker.swift (máquina de sessões)
+    Limits/             ClaudeLimits.swift (parser + janelas), ClaudeEstimator, GeminiLimits, LimitAlerts
     Logs/               LogParsers.swift (JSONL do Claude Code, logs.json do Gemini CLI), LogIngestors.swift (cursores + LogSessionWriter)
     Providers/          GeminiQuota.swift · (Fase 3/4) parsers de log e de limites, UsageProvider
     Projects/           ProjectResolver.swift (cwd → raiz git, domínio, título, último usado), ProjectAssigner, GitRoot
@@ -34,6 +35,7 @@ Sources/
     Support/            Formatters.swift, DemoData.swift
   BandejaIA/            app SwiftUI/AppKit
     App/                BandejaIAApp.swift, AppState.swift, MenuBarLabel.swift
+    Limits/             ClaudeProvider.swift (Keychain/sessionKey + HTTP, protocolo UsageProvider), LimitsService.swift (+ LimitNotifier)
     Collector/          ActivityMonitor, BrowserTabReader, IdleDetector (+ WindowTitleReader), LogWatcher (FSEvents)
     UI/                 Theme, PopoverView, TodayView, ReportView, LimitsCard, SessionRow, PreferencesView, PermissionsView
     Support/            Preferences.swift, Permissions.swift, Keychain.swift, Snapshot.swift (DEBUG)
@@ -117,6 +119,15 @@ Adicionar um operador novo = nova implementação; nenhum outro arquivo deve mud
 - **CLI:** contagem exata dos logs contra 1000 req/dia.
 - Reset diário à meia-noite de `America/Los_Angeles`, exibido no fuso local.
 
+### Implementação (Fase 4)
+- `ClaudeLimits.parse` aceita as janelas `five_hour`, `seven_day`, `seven_day_opus`, `seven_day_sonnet` (nulas são ignoradas; exige 5 h ou semanal). Renovação vencida zera o uso até a próxima consulta.
+- `ClaudeProvider`: ordem das credenciais conforme Preferências (padrão: token do Claude Code, depois `sessionKey`). Token em memória até expirar; sem token válido, relê o Keychain no máximo a cada 30 min; se o usuário negar o pedido, não pergunta de novo na execução. Nunca renova o token (isso rotacionaria o refresh token do Claude Code).
+- `LimitsService`: consulta a cada 3 min, ao abrir o popover (mínimo 30 s entre consultas) e 10 s após o fim de uma sessão do Claude; erro → backoff 60 s, 120 s… até 30 min. Snapshots oficiais ficam na tabela por 7 dias e valem para exibição por até 6 h; depois disso, ou sem credencial, a janela de 5 h é **estimada** pelos tokens do Claude Code das últimas 5 horas (`ClaudeEstimator`).
+- Orçamento da estimativa: padrão 4 mi tokens/5 h (arbitrário) até ser **calibrado** por uma leitura oficial com uso ≥ 5% (tokens locais ÷ uso). Estimativa sem calibração não gera notificação.
+- Gemini app: prompts = sessões web no dia de cota × taxa (Preferências, padrão 4) + contador exato `web_prompts` (reservado para uma futura extensão). CLI: contador `cli_requests` ÷ 1000.
+- Notificações (`LimitAlerts`): uma por janela, faixa (80/100) e período de renovação; pular de <80 para 100 avisa só 100. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
+- Assinatura ad hoc: o macOS pede de novo a permissão do Keychain a cada build.
+
 ## Atribuição de projeto (ProjectResolver)
 1. Sessão com `manual_project` → mantém.
 2. `cwd` (Claude Code / Gemini CLI) → raiz git → regra `cwd` ou nome da pasta.
@@ -146,5 +157,5 @@ Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de c
 ### Gemini CLI — não verificável nesta máquina
 `~/.gemini/` não tem `tmp/`, `settings.json` nem logs do CLI (só `GEMINI.md`; existe `antigravity-backup/`, que é de outro app e deve ser ignorado). Implementar o leitor de forma tolerante, para o formato esperado: `~/.gemini/tmp/<hash>/logs.json` (array de `{sessionId, messageId, type, timestamp, …}`, contar `type == "user"` por dia de cota) e `~/.gemini/tmp/<hash>/chats/session-*.json`. Alternativa: `telemetry.outfile` em `~/.gemini/settings.json`. Revalidar com o script depois de usar o Gemini CLI.
 
-### Limites do Claude — pendente (envolve credencial)
-Não executado: checar o item `Claude Code-credentials` no Keychain e chamar o endpoint. Candidato: `GET https://api.anthropic.com/api/oauth/usage` com `Authorization: Bearer <accessToken>` e `anthropic-beta: oauth-2025-04-20`; resposta esperada `{"five_hour": {"utilization": 0–100, "resets_at": ISO 8601}, "seven_day": {…}, "seven_day_opus": {…}|null}`. Salvar resposta real anonimizada em `Tests/Fixtures/claude_usage.json` antes da Fase 4.
+### Limites do Claude — não verificável nesta máquina (05/10/2026)
+`scripts/probe-claude-usage.py` (não imprime o token) mostrou que o item `Claude Code-credentials` existe com os campos `accessToken`, `expiresAt`, `refreshToken`, `refreshTokenExpiresAt`, `scopes`, `subscriptionType`, `rateLimitTier`, mas com `accessToken` vazio e `expiresAt` = 0 (Claude Code usado só pelo app desktop, sem `claude /login` no terminal). Quando houver token válido, rodar `python3 scripts/probe-claude-usage.py --save Tests/Fixtures/claude_usage.json` e trocar a fixture sintética (`claude_usage.synthetic.json`) pela real. Candidato: `GET https://api.anthropic.com/api/oauth/usage` com `Authorization: Bearer <accessToken>` e `anthropic-beta: oauth-2025-04-20`; resposta esperada `{"five_hour": {"utilization": 0–100, "resets_at": ISO 8601}, "seven_day": {…}, "seven_day_opus": {…}|null}`. Salvar resposta real anonimizada em `Tests/Fixtures/claude_usage.json` antes da Fase 4.

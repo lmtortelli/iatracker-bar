@@ -13,4 +13,8 @@ TestRunner.run([
     ("ProjectResolver", ProjectResolverTests.all),
     ("ClaudeCodeLog", ClaudeCodeLogTests.all),
     ("GeminiCLILog", GeminiCLILogTests.all),
+    ("ClaudeLimits", ClaudeLimitsTests.all),
+    ("ClaudeEstimator", ClaudeEstimatorTests.all),
+    ("GeminiLimits", GeminiLimitsTests.all),
+    ("LimitAlerts", LimitAlertsTests.all),
 ])

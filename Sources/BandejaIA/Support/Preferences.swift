@@ -62,6 +62,8 @@ enum Preferences {
         static let idleMinutes = "idleMinutes"
         static let claudeCredentialSource = "claudeCredentialSource"
         static let paused = "paused"
+        static let claudeTokenBudget = "claudeTokenBudget"
+        static let geminiPromptsPerSession = "geminiPromptsPerSession"
         static let onboardingCompleted = "onboardingCompleted"
     }
 
@@ -71,11 +73,26 @@ enum Preferences {
             Key.geminiDailyQuota: GeminiQuota.defaultAppPrompts,
             Key.idleMinutes: 2,
             Key.claudeCredentialSource: ClaudeCredentialSource.claudeCode.rawValue,
+            Key.geminiPromptsPerSession: GeminiLimits.defaultPromptsPerSession,
         ])
     }
 
     static var geminiDailyQuota: Int {
         UserDefaults.standard.integer(forKey: Key.geminiDailyQuota)
+    }
+
+    static var geminiPromptsPerSession: Double {
+        UserDefaults.standard.double(forKey: Key.geminiPromptsPerSession)
+    }
+
+    /// Orçamento da estimativa de 5 h: calibrado com dado oficial ou o padrão.
+    static var claudeTokenBudget: Int {
+        let calibrated = UserDefaults.standard.integer(forKey: Key.claudeTokenBudget)
+        return calibrated > 0 ? calibrated : ClaudeEstimator.defaultBudget
+    }
+
+    static var claudeBudgetIsCalibrated: Bool {
+        UserDefaults.standard.integer(forKey: Key.claudeTokenBudget) > 0
     }
 
     static var idleSeconds: TimeInterval {

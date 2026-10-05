@@ -75,6 +75,7 @@ private struct GeneralPane: View {
 private struct ProvidersPane: View {
     @AppStorage(Preferences.Key.claudeCredentialSource) private var credentialSource = ClaudeCredentialSource.claudeCode.rawValue
     @AppStorage(Preferences.Key.geminiDailyQuota) private var geminiQuota = GeminiQuota.defaultAppPrompts
+    @AppStorage(Preferences.Key.geminiPromptsPerSession) private var promptsPerSession = GeminiLimits.defaultPromptsPerSession
     @State private var sessionKey = ""
     @State private var hasSessionKey = Keychain.exists(account: Keychain.Account.claudeSessionKey)
     @State private var keychainError: String?
@@ -105,6 +106,9 @@ private struct ProvidersPane: View {
                         .font(.caption)
                         .foregroundColor(Theme.secondary)
                 }
+                Text("Sem credencial, a janela de 5 h é estimada pelos tokens do Claude Code (orçamento \(ClaudeEstimator.formatTokens(Preferences.claudeTokenBudget)) tokens, \(Preferences.claudeBudgetIsCalibrated ? "calibrado com o dado oficial" : "valor padrão, sem calibração")).")
+                    .font(.caption)
+                    .foregroundColor(Theme.secondary)
                 Text("Os limites do Claude usam um endpoint não documentado e podem parar de funcionar sem aviso.")
                     .font(.caption)
                     .foregroundColor(Theme.secondary)
@@ -113,6 +117,9 @@ private struct ProvidersPane: View {
             Section("Gemini") {
                 Stepper(value: $geminiQuota, in: 10...1000, step: 10) {
                     Text("Cota diária do app: \(geminiQuota) prompts")
+                }
+                Stepper(value: $promptsPerSession, in: 1...20, step: 1) {
+                    Text("Prompts estimados por sessão no app: \(Int(promptsPerSession))")
                 }
                 Text("O Gemini não expõe uso restante; a contagem é local e zera à meia-noite do Pacífico. CLI: \(GeminiQuota.cliRequests) requisições/dia.")
                     .font(.caption)

@@ -13,7 +13,7 @@ struct LimitsCard: View {
                 .foregroundColor(Theme.secondary)
 
             if limits.isEmpty {
-                Text("Consulta de limites ainda não disponível nesta versão.")
+                Text("Consultando limites…")
                     .font(.system(size: 12))
                     .foregroundColor(Theme.secondary)
             }
@@ -26,6 +26,12 @@ struct LimitsCard: View {
                             .font(.system(size: 13, weight: .semibold))
                         Spacer()
                         SourceBadge(source: provider.source)
+                    }
+                    if let note = provider.note {
+                        Text(note)
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     ForEach(provider.windows) { window in
                         LimitWindowRow(window: window, now: now)

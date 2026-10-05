@@ -30,7 +30,7 @@ struct PopoverView: View {
         }
         .frame(width: 360)
         .font(.system(size: 12))
-        .onAppear { state.reload() }
+        .onAppear { state.popoverOpened() }
         .background(quitShortcut)
     }
 

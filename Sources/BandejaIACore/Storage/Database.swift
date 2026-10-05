@@ -167,7 +167,25 @@ public final class AppDatabase: Sendable {
         }
     }
 
+    /// Vários contadores de uma vez (ex.: as 5 horas da janela do Claude).
+    public func counters(_ provider: ProviderID, _ kind: Counter.Kind, days: [String]) throws -> [String: Int] {
+        try writer.read { db in
+            let rows = try Counter
+                .filter(Column("provider") == provider && Column("kind") == kind && days.contains(Column("day")))
+                .fetchAll(db)
+            return Dictionary(rows.map { ($0.day, $0.value) }, uniquingKeysWith: +)
+        }
+    }
+
     // MARK: Limites
+
+    /// Grava os snapshots de uma consulta e descarta os com mais de 7 dias.
+    public func save(_ snapshots: [LimitSnapshot], pruneBefore: Date) throws {
+        try writer.write { db in
+            for var snapshot in snapshots { try snapshot.insert(db) }
+            try LimitSnapshot.filter(Column("fetched_at") < pruneBefore).deleteAll(db)
+        }
+    }
 
     public func insert(_ snapshot: LimitSnapshot) throws {
         try writer.write { db in

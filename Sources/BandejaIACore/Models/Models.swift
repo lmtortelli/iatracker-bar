@@ -266,12 +266,15 @@ public struct ProviderLimits: Equatable, Identifiable, Sendable {
     public var provider: ProviderID
     public var source: LimitSource
     public var windows: [LimitWindow]
+    /// Aviso curto sob o operador (ex.: sem credencial, consulta falhou).
+    public var note: String?
 
     public var id: ProviderID { provider }
 
-    public init(provider: ProviderID, source: LimitSource, windows: [LimitWindow]) {
+    public init(provider: ProviderID, source: LimitSource, windows: [LimitWindow], note: String? = nil) {
         self.provider = provider
         self.source = source
         self.windows = windows
+        self.note = note
     }
 }

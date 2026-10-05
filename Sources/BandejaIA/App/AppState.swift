@@ -24,6 +24,9 @@ final class AppState: ObservableObject {
     /// Coletores reais; `nil` no modo demonstração.
     private(set) var monitor: ActivityMonitor?
     private(set) var logWatcher: LogWatcher?
+    private(set) var limitsService: LimitsService?
+    /// Sessões do Claude abertas no último `reload` (para consultar limites quando uma termina).
+    private var openClaudeSessions: Set<Int64> = []
 
     private let aggregator = ReportAggregator()
     private let logger = Logger(subsystem: "BandejaIA", category: "AppState")
@@ -62,6 +65,17 @@ final class AppState: ObservableObject {
         logWatcher.onChange = { [weak self] in self?.reload() }
         logWatcher.start()
         self.logWatcher = logWatcher
+
+        let limitsService = LimitsService(database: database)
+        limitsService.onUpdate = { [weak self] limits in self?.limits = limits }
+        self.limitsService = limitsService
+        limitsService.start()
+    }
+
+    /// Ao abrir o popover: dados frescos e, se permitido, nova consulta de limites.
+    func popoverOpened() {
+        reload()
+        limitsService?.refresh(force: true)
     }
 
     static func bootstrap(demo isDemo: Bool) -> AppState {
@@ -126,6 +140,11 @@ final class AppState: ObservableObject {
         do {
             todaySessions = try database.sessions(from: start, to: end)
             projects = try database.projects()
+            let open = Set(todaySessions.filter { $0.endedAt == nil && $0.provider == .claude }.compactMap(\.id))
+            if !openClaudeSessions.subtracting(open).isEmpty {
+                limitsService?.refreshSoon(after: 10)
+            }
+            openClaudeSessions = open
         } catch {
             logger.error("Falha ao ler sessões: \(error.localizedDescription, privacy: .public)")
         }
@@ -133,7 +152,10 @@ final class AppState: ObservableObject {
     }
 
     func refreshLimits() {
-        guard isDemo else { return }
+        guard isDemo else {
+            limitsService?.publish()
+            return
+        }
         let now = Date.now
         let day = GeminiQuota.quotaDay(for: now)
         limits = DemoData.limits(
