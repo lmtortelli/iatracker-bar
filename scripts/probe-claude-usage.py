@@ -67,11 +67,12 @@ def read_oauth(service):
 def manual_token():
     """Token informado pelo usuário, se algum dos modos manuais foi pedido."""
     if "--clipboard" in sys.argv:
-        value = subprocess.run(["pbpaste"], capture_output=True, text=True).stdout.strip()
+        # O terminal pode quebrar o token em linhas ao copiar; token não tem espaços.
+        value = re.sub(r"\s+", "", subprocess.run(["pbpaste"], capture_output=True, text=True).stdout)
         print("token: lido da área de transferência" + ("" if value else " (vazia!)"))
         return value or None
     if "--ask-token" in sys.argv:
-        value = getpass.getpass("Cole o token (não aparece na tela): ").strip()
+        value = re.sub(r"\s+", "", getpass.getpass("Cole o token (não aparece na tela): "))
         return value or None
     value = os.environ.get("CLAUDE_USAGE_TOKEN", "").strip()
     if value:
@@ -89,6 +90,8 @@ def main():
     token = manual_token()
     if token:
         print("token manual:", describe(token))
+        if not token.startswith("sk-ant-oat01-"):
+            print("Aviso: não parece um token do `claude setup-token` (esperado prefixo sk-ant-oat01-).")
     for service, modified in ([] if token else keychain_services()):
         oauth = read_oauth(service)
         if oauth is None:
