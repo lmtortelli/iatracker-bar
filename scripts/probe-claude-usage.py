@@ -30,28 +30,50 @@ def anonymize(value):
     return value  # números, bool, null
 
 
-def main():
+def keychain_services():
+    """Serviços `Claude Code-credentials*` (versões novas criam um por pasta de configuração)."""
+    dump = subprocess.run(["security", "dump-keychain"], capture_output=True, text=True).stdout
+    found = {}
+    current = None
+    for line in dump.splitlines():
+        match = re.search(r'"svce"<blob>="(Claude Code-credentials[^"]*)"', line)
+        if match:
+            current = match.group(1)
+        match = re.search(r'"mdat"<timedate>=\S+\s+"(\d{14})Z', line)
+        if match and current:
+            found[current] = match.group(1)
+            current = None
+    return sorted(found.items(), key=lambda item: item[1], reverse=True)
+
+
+def read_oauth(service):
     try:
         raw = subprocess.run(
-            ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+            ["security", "find-generic-password", "-s", service, "-w"],
             capture_output=True, text=True, check=True,
         ).stdout.strip()
-    except subprocess.CalledProcessError as error:
-        print(f"Não foi possível ler o Keychain (status {error.returncode}).")
-        return 1
+        return json.loads(raw).get("claudeAiOauth", {})
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return None
 
-    try:
-        oauth = json.loads(raw).get("claudeAiOauth", {})
-    except json.JSONDecodeError:
-        print("Item do Keychain não é JSON.")
-        return 1
-    token = oauth.get("accessToken")
-    print("credencial: campos =", sorted(oauth.keys()))
-    expires = oauth.get("expiresAt")
-    if isinstance(expires, (int, float)):
-        print(f"token expira em: {round((expires / 1000 - time.time()) / 60)} min")
+
+def main():
+    token = None
+    for service, modified in keychain_services():
+        oauth = read_oauth(service)
+        if oauth is None:
+            print(f"{service}: ilegível (modificado {modified})")
+            continue
+        expires = oauth.get("expiresAt") or 0
+        minutes = round((expires / 1000 - time.time()) / 60) if expires else None
+        valid = bool(oauth.get("accessToken")) and minutes is not None and minutes > 1
+        print(f"{service}: modificado {modified} · token {'válido' if valid else 'ausente/vencido'}"
+              + (f" · expira em {minutes} min" if minutes is not None and minutes > 0 else ""))
+        if valid and token is None:
+            token = oauth["accessToken"]
+            print(f"  → usando {service}")
     if not token:
-        print("Sem accessToken.")
+        print("Nenhum token válido. Faça /login no Claude Code (terminal) e rode de novo.")
         return 1
 
     request = urllib.request.Request(ENDPOINT, headers={

@@ -100,23 +100,61 @@ final class ClaudeProvider: UsageProvider, @unchecked Sendable {
         lock.unlock()
     }
 
+    static let credentialService = "Claude Code-credentials"
+
+    /// Versões novas do Claude Code criam um item por pasta de configuração
+    /// (`Claude Code-credentials-<hash>`). Lê do mais recente para o mais antigo até achar token válido.
     private static func readClaudeCodeCredential() -> (OSStatus, (accessToken: String, expiresAt: Date)?) {
+        var lastStatus = errSecItemNotFound
+        for service in credentialServices() {
+            let query: [String: Any] = [
+                kSecClass as String: kSecClassGenericPassword,
+                kSecAttrService as String: service,
+                kSecReturnData as String: true,
+                kSecMatchLimit as String: kSecMatchLimitOne,
+            ]
+            var result: AnyObject?
+            lastStatus = SecItemCopyMatching(query as CFDictionary, &result)
+            if lastStatus == errSecUserCanceled || lastStatus == errSecAuthFailed { return (lastStatus, nil) }
+            guard lastStatus == errSecSuccess,
+                  let data = result as? Data,
+                  let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let oauth = json["claudeAiOauth"] as? [String: Any],
+                  let token = oauth["accessToken"] as? String, !token.isEmpty
+            else { continue }
+            let expiresMs = (oauth["expiresAt"] as? NSNumber)?.doubleValue ?? 0
+            let expiresAt = Date(timeIntervalSince1970: expiresMs / 1000)
+            if expiresAt > Date() { return (lastStatus, (token, expiresAt)) }
+        }
+        return (lastStatus, nil)
+    }
+
+    /// Nomes dos itens modificados nas últimas 24 h, do mais recente para o mais antigo.
+    /// O Claude Code regrava o item ao renovar o token: item mais antigo que isso tem token vencido
+    /// e nem é lido (cada leitura pode abrir um pedido de permissão do Keychain).
+    /// Ler só atributos não abre o pedido.
+    private static func credentialServices() -> [String] {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: "Claude Code-credentials",
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecReturnAttributes as String: true,
+            kSecMatchLimit as String: kSecMatchLimitAll,
         ]
         var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let oauth = json["claudeAiOauth"] as? [String: Any],
-              let token = oauth["accessToken"] as? String
-        else { return (status, nil) }
-        let expiresMs = (oauth["expiresAt"] as? NSNumber)?.doubleValue ?? 0
-        return (status, (token, Date(timeIntervalSince1970: expiresMs / 1000)))
+        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
+              let items = result as? [[String: Any]]
+        else { return [] }
+        let recent = Date().addingTimeInterval(-24 * 3600)
+        return items
+            .compactMap { item -> (String, Date)? in
+                guard let service = item[kSecAttrService as String] as? String,
+                      service.hasPrefix(credentialService),
+                      let modified = item[kSecAttrModificationDate as String] as? Date,
+                      modified > recent
+                else { return nil }
+                return (service, modified)
+            }
+            .sorted { $0.1 > $1.1 }
+            .map(\.0)
     }
 
     // MARK: sessionKey do claude.ai

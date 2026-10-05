@@ -121,6 +121,7 @@ Adicionar um operador novo = nova implementação; nenhum outro arquivo deve mud
 
 ### Implementação (Fase 4)
 - `ClaudeLimits.parse` aceita as janelas `five_hour`, `seven_day`, `seven_day_opus`, `seven_day_sonnet` (nulas são ignoradas; exige 5 h ou semanal). Renovação vencida zera o uso até a próxima consulta.
+- Itens do Keychain: versões novas do Claude Code criam `Claude Code-credentials-<hash>` (um por pasta de configuração) além do item sem sufixo. O app lista os atributos (sem pedido de permissão), lê só os modificados nas últimas 24 h, do mais recente ao mais antigo, e usa o primeiro com token válido.
 - `ClaudeProvider`: ordem das credenciais conforme Preferências (padrão: token do Claude Code, depois `sessionKey`). Token em memória até expirar; sem token válido, relê o Keychain no máximo a cada 30 min; se o usuário negar o pedido, não pergunta de novo na execução. Nunca renova o token (isso rotacionaria o refresh token do Claude Code).
 - `LimitsService`: consulta a cada 3 min, ao abrir o popover (mínimo 30 s entre consultas) e 10 s após o fim de uma sessão do Claude; erro → backoff 60 s, 120 s… até 30 min. Snapshots oficiais ficam na tabela por 7 dias e valem para exibição por até 6 h; depois disso, ou sem credencial, a janela de 5 h é **estimada** pelos tokens do Claude Code das últimas 5 horas (`ClaudeEstimator`).
 - Orçamento da estimativa: padrão 4 mi tokens/5 h (arbitrário) até ser **calibrado** por uma leitura oficial com uso ≥ 5% (tokens locais ÷ uso). Estimativa sem calibração não gera notificação.
