@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>pt-BR</string>
+	<key>CFBundleExecutable</key>
+	<string>BandejaIA</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.bandejaia</string>
+	<key>CFBundleName</key>
+	<string>Bandeja IA</string>
+	<key>CFBundleDisplayName</key>
+	<string>Bandeja IA</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>__VERSION__</string>
+	<key>CFBundleVersion</key>
+	<string>__VERSION__</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>13.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>O Bandeja IA lê apenas a URL da aba ativa do navegador para saber se você está usando Claude ou Gemini. Nenhum conteúdo da página é lido.</string>
+	<key>NSHumanReadableCopyright</key>
+	<string>Uso pessoal.</string>
+</dict>
+</plist>
