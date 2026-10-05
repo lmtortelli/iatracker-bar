@@ -119,7 +119,17 @@ Primeira execução: tela de onboarding pedindo Acessibilidade e Automação (po
 - Testes para: parser JSONL do Claude Code, parser de limites, ProjectResolver, agregações do relatório.
 
 ## Fase 0 — investigação (estado)
-Itens que exigem ler dados locais do usuário ou credenciais **não foram executados** pelo agente (bloqueados por política de privacidade). Pendentes, para o usuário rodar ou autorizar:
-1. **Formato do JSONL do Claude Code** (`~/.claude/projects/**/*.jsonl`). Formato esperado (conhecimento público, **não verificado nesta máquina**): uma linha JSON por evento com `type` (`user`/`assistant`/`summary`…), `timestamp` (ISO 8601), `cwd`, `sessionId`, `gitBranch`, `version` e, em `assistant`, `message.usage` com `input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens`. O parser deve ignorar `message.content`.
-2. **Logs do Gemini CLI** (`~/.gemini/`). Esperado: `~/.gemini/tmp/<hash-do-projeto>/logs.json` (array de `{sessionId, messageId, type, timestamp, …}`; contar `type == "user"` por dia) e, em versões novas, `chats/session-*.json`. Alternativa: `telemetry.outfile` em `~/.gemini/settings.json`.
-3. **Endpoint de limites do Claude.** Candidato: `GET https://api.anthropic.com/api/oauth/usage` com `Authorization: Bearer <accessToken>` e `anthropic-beta: oauth-2025-04-20`. Resposta esperada: `{"five_hour": {"utilization": <0–100>, "resets_at": "<ISO 8601>"}, "seven_day": {…}, "seven_day_opus": {…}|null}`. Salvar resposta real anonimizada em `Tests/Fixtures/claude_usage.json` antes da Fase 4.
+Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de campos, tipos e contagens, nunca valores. Liberado em `~/.claude/settings.json` com a regra `Bash(python3 …/scripts/inspect-local-logs.py*)`.
+
+### Claude Code — verificado em 05/10/2026
+- Caminho: `~/.claude/projects/<cwd-com-hifens>/<sessionId>.jsonl`, uma linha JSON por evento.
+- Campos comuns em `user`/`assistant`: `type`, `timestamp` (ISO 8601), `sessionId` (uuid), `cwd` (caminho absoluto), `gitBranch`, `version`, `entrypoint`, `isSidechain`, `uuid`, `parentUuid`; subagentes trazem `agentId`.
+- `assistant`: `message.model`, `message.id`, `requestId` e `message.usage` com `input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens` (+ `cache_creation.ephemeral_5m/1h_input_tokens`, `service_tier`, `speed`).
+- Outros `type` presentes e **ignoráveis** pelo parser: `queue-operation`, `attachment`, `last-prompt`, `custom-title`, `ai-title`, `agent-name`, `file-history-snapshot`, `file-history-delta`, `atis-latch`, `system`.
+- Regras do parser: ler só `type`, `timestamp`, `cwd`, `sessionId`, `isSidechain`/`agentId`, `message.model`, `message.id`/`requestId` e `message.usage`; **nunca** `message.content`. A mesma resposta pode ocupar várias linhas com o mesmo `message.id`: deduplicar antes de somar tokens. `cwd` → raiz git → projeto.
+
+### Gemini CLI — não verificável nesta máquina
+`~/.gemini/` não tem `tmp/`, `settings.json` nem logs do CLI (só `GEMINI.md`; existe `antigravity-backup/`, que é de outro app e deve ser ignorado). Implementar o leitor de forma tolerante, para o formato esperado: `~/.gemini/tmp/<hash>/logs.json` (array de `{sessionId, messageId, type, timestamp, …}`, contar `type == "user"` por dia de cota) e `~/.gemini/tmp/<hash>/chats/session-*.json`. Alternativa: `telemetry.outfile` em `~/.gemini/settings.json`. Revalidar com o script depois de usar o Gemini CLI.
+
+### Limites do Claude — pendente (envolve credencial)
+Não executado: checar o item `Claude Code-credentials` no Keychain e chamar o endpoint. Candidato: `GET https://api.anthropic.com/api/oauth/usage` com `Authorization: Bearer <accessToken>` e `anthropic-beta: oauth-2025-04-20`; resposta esperada `{"five_hour": {"utilization": 0–100, "resets_at": ISO 8601}, "seven_day": {…}, "seven_day_opus": {…}|null}`. Salvar resposta real anonimizada em `Tests/Fixtures/claude_usage.json` antes da Fase 4.
