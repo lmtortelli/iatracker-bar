@@ -161,34 +161,3 @@ public enum GeminiLimits {
         ])
     }
 }
-
-/// Alertas de 80% e 100%: no máximo um por janela, faixa e período de renovação.
-public enum LimitAlerts {
-    public struct Alert: Equatable, Sendable {
-        public var key: String
-        public var provider: ProviderID
-        public var window: LimitWindow
-        public var threshold: Int
-    }
-
-    public static let thresholds = [80, 100]
-
-    /// Alertas a disparar agora e as chaves a marcar como enviadas (inclui faixas inferiores puladas).
-    public static func due(_ limits: [ProviderLimits], alreadySent: Set<String>) -> (alerts: [Alert], keys: Set<String>) {
-        var alerts: [Alert] = []
-        var keys: Set<String> = []
-        for provider in limits {
-            for window in provider.windows {
-                let period = window.resetAt.map { String(Int($0.timeIntervalSince1970 / 60)) } ?? "sem-renovacao"
-                let crossed = thresholds.filter { window.usedPct >= Double($0) }
-                guard let highest = crossed.max() else { continue }
-                let key = { (t: Int) in "\(provider.provider.rawValue).\(window.id).\(t).\(period)" }
-                if !alreadySent.contains(key(highest)) {
-                    alerts.append(Alert(key: key(highest), provider: provider.provider, window: window, threshold: highest))
-                }
-                crossed.forEach { keys.insert(key($0)) }
-            }
-        }
-        return (alerts, keys.subtracting(alreadySent))
-    }
-}

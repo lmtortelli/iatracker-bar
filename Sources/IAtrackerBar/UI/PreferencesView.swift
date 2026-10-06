@@ -2,6 +2,7 @@ import AppKit
 import IAtrackerBarCore
 import ServiceManagement
 import SwiftUI
+import UserNotifications
 
 @MainActor
 enum PreferencesWindow {
@@ -17,6 +18,7 @@ struct PreferencesView: View {
         TabView {
             GeneralPane().tabItem { Label("Geral", systemImage: "gearshape") }
             ProvidersPane().tabItem { Label("Operadores", systemImage: "sparkles") }
+            AlertsPane().tabItem { Label("Avisos", systemImage: "bell") }
             ProjectsPane().tabItem { Label("Projetos", systemImage: "folder") }
             PermissionsPane().tabItem { Label("Permissões", systemImage: "lock.shield") }
         }
@@ -236,6 +238,94 @@ struct StatusDot: View {
 
     var body: some View {
         Circle().fill(color).frame(width: 8, height: 8)
+    }
+}
+
+// MARK: - Avisos
+
+private struct AlertsPane: View {
+    @AppStorage(Preferences.Key.alertNearEnabled) private var nearEnabled = true
+    @AppStorage(Preferences.Key.alertNearThreshold) private var nearThreshold = 80
+    @AppStorage(Preferences.Key.alertFullEnabled) private var fullEnabled = true
+    @AppStorage(Preferences.Key.alertResetEnabled) private var resetEnabled = true
+    @AppStorage(Preferences.Key.alertResetThreshold) private var resetThreshold = 90
+    @State private var windows = Preferences.alertSettings.windows
+    @State private var authorization: UNAuthorizationStatus?
+
+    private let windowOptions: [(id: String, title: String)] = [
+        ("five_hour", "Claude · Sessão 5 h"),
+        ("seven_day", "Claude · Semanal"),
+        ("app_daily", "Gemini · App (diária)"),
+        ("cli_daily", "Gemini · CLI (diária)"),
+    ]
+
+    var body: some View {
+        Form {
+            if authorization == .denied {
+                Section {
+                    HStack {
+                        Text("As notificações do IAtracker-bar estão desativadas nos Ajustes do Sistema.")
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        Button("Abrir Ajustes") {
+                            if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension") {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }
+                    }
+                }
+            }
+
+            Section("Perto do limite") {
+                Toggle(isOn: $nearEnabled) {
+                    Stepper(value: $nearThreshold, in: 50...95, step: 5) {
+                        Text("Avisar ao passar de \(nearThreshold)%")
+                    }
+                }
+                Toggle("Avisar ao atingir 100%", isOn: $fullEnabled)
+            }
+
+            Section("Renovação") {
+                Toggle(isOn: $resetEnabled) {
+                    Stepper(value: $resetThreshold, in: 50...100, step: 5) {
+                        Text("Avisar quando a janela renovar, se o uso passou de \(resetThreshold)%")
+                    }
+                }
+                Text("Útil para voltar ao trabalho assim que a sessão de 5 h ou a cota diária é liberada.")
+                    .font(.caption)
+                    .foregroundColor(Theme.secondary)
+            }
+
+            Section("Janelas") {
+                ForEach(windowOptions, id: \.id) { option in
+                    Toggle(option.title, isOn: Binding(
+                        get: { windows.contains(option.id) },
+                        set: { on in
+                            if on { windows.insert(option.id) } else { windows.remove(option.id) }
+                            UserDefaults.standard.set(Array(windows).sorted(), forKey: Preferences.Key.alertWindows)
+                        }
+                    ))
+                }
+                Text("Sem o login do Claude Code, a janela de 5 h é estimada e só avisa depois de calibrada com um dado oficial.")
+                    .font(.caption)
+                    .foregroundColor(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Section {
+                Button("Enviar notificação de teste") { LimitNotifier.sendTest() }
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear(perform: loadAuthorization)
+    }
+
+    private func loadAuthorization() {
+        guard Bundle.main.bundleIdentifier != nil else { return }
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            let status = settings.authorizationStatus
+            DispatchQueue.main.async { authorization = status }
+        }
     }
 }
 

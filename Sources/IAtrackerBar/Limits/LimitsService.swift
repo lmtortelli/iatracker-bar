@@ -207,35 +207,40 @@ enum ClaudeConnection: Equatable {
     case failed
 }
 
-/// Notificações locais ao cruzar 80% e 100% (uma vez por janela e período).
+/// Notificações locais: perto do limite, 100% e renovação (ver `LimitAlerts`).
 @MainActor
 final class LimitNotifier {
-    private static let sentKey = "sentLimitAlerts"
+    private static let stateKey = "alertState"
 
     func check(_ limits: [ProviderLimits]) {
         let defaults = UserDefaults.standard
-        let sent = Set(defaults.stringArray(forKey: Self.sentKey) ?? [])
-        let (alerts, keys) = LimitAlerts.due(limits, alreadySent: sent)
-        guard !keys.isEmpty else { return }
-        defaults.set(Array((Array(sent) + keys).suffix(300)), forKey: Self.sentKey)
+        var state = defaults.data(forKey: Self.stateKey)
+            .flatMap { try? JSONDecoder().decode(AlertState.self, from: $0) } ?? AlertState()
+        let before = state
+        let alerts = LimitAlerts.evaluate(limits, settings: Preferences.alertSettings, state: &state, now: .now)
+        if state != before, let data = try? JSONEncoder().encode(state) {
+            defaults.set(data, forKey: Self.stateKey)
+        }
+        Self.post(alerts.map { ($0.key, $0.title, $0.body) })
+    }
 
-        // UNUserNotificationCenter exige um bundle (.app); em `swift run` só registra.
-        guard !alerts.isEmpty, Bundle.main.bundleIdentifier != nil else { return }
+    static func sendTest() {
+        post([("teste.\(Date().timeIntervalSince1970)", "IAtracker-bar", "As notificações estão funcionando.")])
+    }
+
+    /// UNUserNotificationCenter exige um bundle (.app); em `swift run` só registra o estado.
+    private static func post(_ notifications: [(id: String, title: String, body: String)]) {
+        guard !notifications.isEmpty, Bundle.main.bundleIdentifier != nil else { return }
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
-            for alert in alerts {
+            for item in notifications {
                 let content = UNMutableNotificationContent()
-                content.title = "\(alert.provider.displayName) · \(alert.window.label): \(Int(alert.window.usedPct))%"
-                let reset = Formatters.reset(alert.window.resetAt, now: Date())
-                content.body = alert.threshold >= 100 ? "Limite atingido. \(reset.capitalizedFirst)." : "\(reset.capitalizedFirst)."
+                content.title = item.title
+                content.body = item.body
                 content.sound = .default
-                center.add(UNNotificationRequest(identifier: alert.key, content: content, trigger: nil))
+                center.add(UNNotificationRequest(identifier: item.id, content: content, trigger: nil))
             }
         }
     }
-}
-
-private extension String {
-    var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }

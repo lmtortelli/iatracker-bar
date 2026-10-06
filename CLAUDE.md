@@ -130,7 +130,7 @@ Adicionar um operador novo = nova implementação; nenhum outro arquivo deve mud
 - `LimitsService`: consulta a cada 3 min, ao abrir o popover (mínimo 30 s entre consultas) e 10 s após o fim de uma sessão do Claude; erro → backoff 60 s, 120 s… até 30 min. Snapshots oficiais ficam na tabela por 7 dias e valem para exibição por até 6 h; depois disso, ou sem credencial, a janela de 5 h é **estimada** pelos tokens do Claude Code das últimas 5 horas (`ClaudeEstimator`).
 - Orçamento da estimativa: padrão 4 mi tokens/5 h (arbitrário) até ser **calibrado** por uma leitura oficial com uso ≥ 5% (tokens locais ÷ uso). Estimativa sem calibração não gera notificação.
 - Gemini app: prompts = sessões web no dia de cota × taxa (Preferências, padrão 4) + contador exato `web_prompts` (reservado para uma futura extensão). CLI: contador `cli_requests` ÷ 1000.
-- Notificações (`LimitAlerts`): uma por janela, faixa (80/100) e período de renovação; pular de <80 para 100 avisa só 100. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
+- Notificações (`LimitAlerts`, configuráveis em Preferências › Avisos): "perto do limite" a partir de N% (padrão 80), "100%" e "renovou" quando a janela renova e o pico do período passou de X% (padrão 90). Uma vez por janela, faixa e período; pular direto para 100% avisa só 100%. Janelas observadas escolhidas pelo usuário (5 h, semanal, Gemini app/CLI). O estado (enviados + pico por período) fica em `UserDefaults["alertState"]`; renovação com mais de 6 h (app estava fechado) não é avisada. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
 - Assinatura ad hoc: o macOS pede de novo a permissão do Keychain a cada build.
 
 ## Atribuição de projeto (ProjectResolver)
@@ -175,7 +175,7 @@ Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de c
 - `LimitsService`: consulta a cada 3 min, ao abrir o popover (mínimo 30 s entre consultas) e 10 s após o fim de uma sessão do Claude; erro → backoff 60 s, 120 s… até 30 min. Snapshots oficiais ficam na tabela por 7 dias e valem para exibição por até 6 h; depois disso, ou sem credencial, a janela de 5 h é **estimada** pelos tokens do Claude Code das últimas 5 horas (`ClaudeEstimator`).
 - Orçamento da estimativa: padrão 4 mi tokens/5 h (arbitrário) até ser **calibrado** por uma leitura oficial com uso ≥ 5% (tokens locais ÷ uso). Estimativa sem calibração não gera notificação.
 - Gemini app: prompts = sessões web no dia de cota × taxa (Preferências, padrão 4) + contador exato `web_prompts` (reservado para uma futura extensão). CLI: contador `cli_requests` ÷ 1000.
-- Notificações (`LimitAlerts`): uma por janela, faixa (80/100) e período de renovação; pular de <80 para 100 avisa só 100. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
+- Notificações (`LimitAlerts`, configuráveis em Preferências › Avisos): "perto do limite" a partir de N% (padrão 80), "100%" e "renovou" quando a janela renova e o pico do período passou de X% (padrão 90). Uma vez por janela, faixa e período; pular direto para 100% avisa só 100%. Janelas observadas escolhidas pelo usuário (5 h, semanal, Gemini app/CLI). O estado (enviados + pico por período) fica em `UserDefaults["alertState"]`; renovação com mais de 6 h (app estava fechado) não é avisada. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
 - Assinatura ad hoc: o macOS pede de novo a permissão do Keychain a cada build.
 
 ## Atribuição de projeto (ProjectResolver)

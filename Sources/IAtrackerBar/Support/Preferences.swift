@@ -49,6 +49,12 @@ enum Preferences {
         static let paused = "paused"
         static let claudeTokenBudget = "claudeTokenBudget"
         static let geminiPromptsPerSession = "geminiPromptsPerSession"
+        static let alertNearEnabled = "alertNearEnabled"
+        static let alertNearThreshold = "alertNearThreshold"
+        static let alertFullEnabled = "alertFullEnabled"
+        static let alertResetEnabled = "alertResetEnabled"
+        static let alertResetThreshold = "alertResetThreshold"
+        static let alertWindows = "alertWindows"
         static let onboardingCompleted = "onboardingCompleted"
     }
 
@@ -61,7 +67,7 @@ enum Preferences {
         let keys = [
             Key.menuBarMetric, Key.geminiDailyQuota, Key.idleMinutes, Key.paused,
             Key.onboardingCompleted, Key.claudeTokenBudget, Key.geminiPromptsPerSession,
-            "lastHeartbeat", "sentLimitAlerts",
+            "lastHeartbeat",
         ]
         for key in keys where defaults.object(forKey: key) == nil {
             if let value = legacy.object(forKey: key) { defaults.set(value, forKey: key) }
@@ -76,11 +82,29 @@ enum Preferences {
             Key.geminiDailyQuota: GeminiQuota.defaultAppPrompts,
             Key.idleMinutes: 2,
             Key.geminiPromptsPerSession: GeminiLimits.defaultPromptsPerSession,
+            Key.alertNearEnabled: true,
+            Key.alertNearThreshold: 80,
+            Key.alertFullEnabled: true,
+            Key.alertResetEnabled: true,
+            Key.alertResetThreshold: 90,
+            Key.alertWindows: Array(AlertSettings.allWindows).sorted(),
         ])
     }
 
     static var geminiDailyQuota: Int {
         UserDefaults.standard.integer(forKey: Key.geminiDailyQuota)
+    }
+
+    static var alertSettings: AlertSettings {
+        let defaults = UserDefaults.standard
+        return AlertSettings(
+            nearEnabled: defaults.bool(forKey: Key.alertNearEnabled),
+            nearThreshold: defaults.integer(forKey: Key.alertNearThreshold),
+            fullEnabled: defaults.bool(forKey: Key.alertFullEnabled),
+            resetEnabled: defaults.bool(forKey: Key.alertResetEnabled),
+            resetThreshold: defaults.integer(forKey: Key.alertResetThreshold),
+            windows: Set(defaults.stringArray(forKey: Key.alertWindows) ?? Array(AlertSettings.allWindows))
+        )
     }
 
     static var geminiPromptsPerSession: Double {

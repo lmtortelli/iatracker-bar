@@ -111,37 +111,96 @@ enum GeminiLimitsTests {
 }
 
 enum LimitAlertsTests {
-    static func limits(_ pct: Double, reset: Date? = date(2026, 10, 5, 16, 5)) -> [ProviderLimits] {
+    static let reset = date(2026, 10, 5, 21, 20)
+
+    static func limits(_pct: Double, window: String = "five_hour", reset: Date? = LimitAlertsTests.reset) -> [ProviderLimits] {
         [ProviderLimits(provider: .claude, source: .official, windows: [
-            LimitWindow(id: "five_hour", label: "Sessão 5 h", usedPct: pct, detail: "", resetAt: reset, source: .official, updatedAt: .now),
+            LimitWindow(id: window, label: window == "five_hour" ? "Sessão 5 h" : "Semanal", usedPct: _pct, detail: "", resetAt: reset, source: .official, updatedAt: .now),
         ])]
     }
 
+    static func run(_ pct: Double, at now: Date, settings: AlertSettings = AlertSettings(), window: String = "five_hour", reset: Date? = LimitAlertsTests.reset, state: inout AlertState) -> [LimitAlerts.Alert] {
+        LimitAlerts.evaluate(limits(_pct: pct, window: window, reset: reset), settings: settings, state: &state, now: now)
+    }
+
+    static let t = date(2026, 10, 5, 18, 0)
+
     static let all: [TestCase] = [
-        ("abaixo de 80%: nada", {
-            let (alerts, keys) = LimitAlerts.due(limits(79), alreadySent: [])
-            expect(alerts.isEmpty && keys.isEmpty)
+        ("abaixo do limite configurado: nada", {
+            var state = AlertState()
+            expect(run(79, at: t, state: &state).isEmpty)
+            var custom = AlertSettings()
+            custom.nearThreshold = 90
+            expect(run(85, at: t, settings: custom, state: &state).isEmpty)
         }),
-        ("80% avisa uma vez por período", {
-            let first = LimitAlerts.due(limits(82), alreadySent: [])
-            expectEqual(first.alerts.map(\.threshold), [80])
-            let again = LimitAlerts.due(limits(85), alreadySent: first.keys)
-            expect(again.alerts.isEmpty)
-            // Novo período de renovação: avisa de novo.
-            let next = LimitAlerts.due(limits(85, reset: date(2026, 10, 5, 21, 5)), alreadySent: first.keys)
-            expectEqual(next.alerts.count, 1)
+        ("perto do limite avisa uma vez por período", {
+            var state = AlertState()
+            let first = run(82, at: t, state: &state)
+            expectEqual(first.map(\.kind), [.near(threshold: 80)])
+            expectEqual(first.first?.title, "Claude · Sessão 5 h em 82%")
+            expect(run(85, at: t.addingTimeInterval(60), state: &state).isEmpty)
+            // Período seguinte avisa de novo.
+            let next = run(85, at: t.addingTimeInterval(60), reset: date(2026, 10, 6, 2, 20), state: &state)
+            expectEqual(next.count, 1)
         }),
-        ("pular direto para 100% avisa só 100% e marca 80%", {
-            let jump = LimitAlerts.due(limits(100), alreadySent: [])
-            expectEqual(jump.alerts.map(\.threshold), [100])
-            expectEqual(jump.keys.count, 2)
-            let later = LimitAlerts.due(limits(100), alreadySent: jump.keys)
-            expect(later.alerts.isEmpty)
+        ("semanal também avisa e pode ser desligada", {
+            var state = AlertState()
+            let weekly = run(81, at: t, window: "seven_day", reset: date(2026, 10, 12, 2, 0), state: &state)
+            expectEqual(weekly.first?.title, "Claude · Semanal em 81%")
+            var only5h = AlertSettings()
+            only5h.windows = ["five_hour"]
+            var other = AlertState()
+            expect(run(95, at: t, settings: only5h, window: "seven_day", reset: date(2026, 10, 12, 2, 0), state: &other).isEmpty)
         }),
-        ("depois de 80%, chegar a 100% avisa de novo", {
-            let eighty = LimitAlerts.due(limits(80), alreadySent: [])
-            let hundred = LimitAlerts.due(limits(100), alreadySent: eighty.keys)
-            expectEqual(hundred.alerts.map(\.threshold), [100])
+        ("pular direto para 100% avisa só 100%", {
+            var state = AlertState()
+            expectEqual(run(100, at: t, state: &state).map(\.kind), [.full])
+            expect(run(100, at: t.addingTimeInterval(60), state: &state).isEmpty)
+        }),
+        ("100% desligado: só o aviso de perto", {
+            var state = AlertState()
+            var settings = AlertSettings()
+            settings.fullEnabled = false
+            expectEqual(run(100, at: t, settings: settings, state: &state).map(\.kind), [.near(threshold: 80)])
+        }),
+        ("renovação avisa quando o pico passou de 90%", {
+            var state = AlertState()
+            _ = run(93, at: t, state: &state)
+            _ = run(97, at: t.addingTimeInterval(1800), state: &state)
+            // Depois da renovação a janela volta zerada e sem horário.
+            let renewed = run(0, at: reset.addingTimeInterval(60), reset: nil, state: &state)
+            expectEqual(renewed.map(\.kind), [.reset(peak: 97)])
+            expectEqual(renewed.first?.title, "Claude · Sessão 5 h renovou")
+            expect(run(0, at: reset.addingTimeInterval(120), reset: nil, state: &state).isEmpty)
+        }),
+        ("renovação não avisa se o pico ficou abaixo do configurado", {
+            var state = AlertState()
+            _ = run(85, at: t, state: &state)
+            expect(run(0, at: reset.addingTimeInterval(60), reset: nil, state: &state).isEmpty)
+
+            var custom = AlertSettings()
+            custom.resetThreshold = 80
+            var other = AlertState()
+            _ = run(85, at: t, settings: custom, state: &other)
+            expectEqual(run(0, at: reset.addingTimeInterval(60), settings: custom, reset: nil, state: &other).count, 1)
+        }),
+        ("renovação desligada ou muito antiga não avisa", {
+            var settings = AlertSettings()
+            settings.resetEnabled = false
+            var state = AlertState()
+            _ = run(99, at: t, settings: settings, state: &state)
+            expect(run(0, at: reset.addingTimeInterval(60), settings: settings, reset: nil, state: &state).isEmpty)
+
+            var stale = AlertState()
+            _ = run(99, at: t, state: &stale)
+            expect(run(0, at: reset.addingTimeInterval(7 * 3600), reset: nil, state: &stale).isEmpty)
+            expect(stale.peaks.isEmpty)
+        }),
+        ("estado sobrevive a codificação", {
+            var state = AlertState()
+            _ = run(95, at: t, state: &state)
+            let decoded = try JSONDecoder().decode(AlertState.self, from: JSONEncoder().encode(state))
+            expectEqual(decoded, state)
         }),
     ]
 }

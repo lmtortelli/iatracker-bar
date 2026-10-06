@@ -146,7 +146,7 @@ struct OnboardingView: View {
             VStack(alignment: .leading, spacing: 10) {
                 Bullet(symbol: "clock", text: "Mede quanto tempo você usa Claude e Gemini — no navegador, no app Claude e no Claude Code.")
                 Bullet(symbol: "folder", text: "Separa o tempo por projeto, pela pasta do git ou por regras suas.")
-                Bullet(symbol: "gauge.with.dots.needle.33percent", text: "Mostra quanto resta dos limites do seu plano e avisa em 80% e 100%.")
+                Bullet(symbol: "gauge.with.dots.needle.33percent", text: "Mostra quanto resta dos limites do seu plano, avisa quando estiver perto do fim e quando a janela renovar.")
                 Bullet(symbol: "lock", text: "Só horários, origem e projeto ficam salvos, neste Mac. Nenhum conteúdo de conversa é lido ou enviado.")
             }
             Spacer(minLength: 0)
