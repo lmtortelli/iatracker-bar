@@ -6,6 +6,8 @@
 	<string>pt-BR</string>
 	<key>CFBundleExecutable</key>
 	<string>IAtrackerBar</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>io.github.lmtortelli.iatracker-bar</string>
 	<key>CFBundleName</key>

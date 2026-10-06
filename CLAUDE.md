@@ -55,6 +55,9 @@ Resources/Info.plist    LSUIElement, NSAppleEventsUsageDescription
 scripts/build-app.sh
 ```
 
+### Logo e ícone
+- ᚨ Ansuz (runa de Odin; a haste é ᛁ Isa → "I" + "A") em cobre sobre pedra escura, anel de medidor verde e IATRACKER em runas na borda (ᛁᚨᛏᚱᚨᚲᚲᛖᚱ). Gerado por `swift scripts/make-icon.swift` (CoreGraphics + `iconutil`, sem dependências): `Resources/AppIcon.icns` (copiado pelo `build-app.sh`), `docs/images/logo.png`, `docs/images/logo-64.png` e `docs/logo.svg`. Em ≤ 64 px o traço engrossa e a borda rúnica some.
+
 ### Decisões de UI
 - Boas-vindas em 5 passos (`OnboardingView`): o que é + privacidade + prévia do item da barra, navegadores, conexão com o Claude (com comandos para copiar e "Verificar agora"), ajustes rápidos, pronto. Reabrível em Preferências › Geral.
 - Credencial do Claude: só o login do Claude Code (`/login`). `sessionKey` removido (não validável); token de longa duração (`claude setup-token`) não testado.
