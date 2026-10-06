@@ -105,6 +105,7 @@ swift run iatracker-tests                # testes (harness próprio: as CLT não
 swift run IAtrackerBar --demo            # roda com os dados fictícios do protótipo
 swift run IAtrackerBar --snapshot docs/images   # gera as imagens deste README
 scripts/build-app.sh                     # build/IAtracker-bar.app
+scripts/install.sh                       # compila e instala/atualiza em /Applications (mantém os dados)
 scripts/build-release.sh 0.1.0           # testes + app universal + build/IAtracker-bar-0.1.0.zip
 scripts/next-version.sh                  # próxima versão pelos commits semânticos
 scripts/test-versioning.sh               # testes do cálculo de versão
