@@ -9,7 +9,7 @@ O IAtracker-bar é um app nativo de barra de menus para macOS que registra sozin
 </p>
 
 <p align="center">
-  <img src="docs/images/hoje-claro.png" alt="Aba Hoje: sessão detectada agora, limites do Claude e do Gemini, total do dia e sessões" width="300">
+  <img src="docs/images/hoje-claro.png" alt="Aba Hoje: sessão detectada agora, limites do Claude e do Gemini e o total do dia (histórico recolhido)" width="300">
   &nbsp;
   <img src="docs/images/relatorio-30dias-escuro.png" alt="Aba Relatório: barras dos últimos 30 dias por operador, tempo por operador e por projeto" width="300">
 </p>
@@ -79,7 +79,7 @@ O status de cada uma fica em **Preferências › Permissões**. Como o app é as
 
 ## Usando
 
-- **Clique no item da barra** para abrir o popover: aba **Hoje** (detecção ao vivo, limites, total e sessões do dia) e aba **Relatório**.
+- **Clique no item da barra** para abrir o popover. A aba **Hoje** mostra o que está sendo detectado agora e os **limites**; o histórico do dia (tempo por operador e sessões) fica recolhido — clique em **› Hoje** para abrir (a escolha é lembrada). A aba **Relatório** mostra semana e 30 dias.
 - **Projeto ▾** troca o projeto da sessão atual ou cria um novo.
 - **❙❙ Pausar detecção** para tudo até você retomar.
 - **⌘,** abre as Preferências e **⌘Q** encerra (com o popover aberto).

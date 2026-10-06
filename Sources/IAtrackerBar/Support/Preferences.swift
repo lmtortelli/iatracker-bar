@@ -55,6 +55,7 @@ enum Preferences {
         static let alertResetEnabled = "alertResetEnabled"
         static let alertResetThreshold = "alertResetThreshold"
         static let alertWindows = "alertWindows"
+        static let showTodayHistory = "showTodayHistory"
         static let onboardingCompleted = "onboardingCompleted"
     }
 

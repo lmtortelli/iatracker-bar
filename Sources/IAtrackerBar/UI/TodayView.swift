@@ -1,13 +1,16 @@
 import IAtrackerBarCore
 import SwiftUI
 
-/// Aba **Hoje**: sessão ativa, limites, total do dia e lista de sessões.
+/// Aba **Hoje**: sessão ativa e limites; o histórico do dia (total por operador e sessões)
+/// fica recolhido por padrão — o foco é nos limites.
 struct TodayView: View {
     @EnvironmentObject private var state: AppState
+    @AppStorage(Preferences.Key.showTodayHistory) private var showHistory = false
     let now: Date
 
-    /// Sem rolagem na janela da barra de menus: listamos as mais recentes.
-    private let maxSessions = 8
+    /// Sem rolagem na janela da barra de menus: listamos as mais recentes, o bastante
+    /// para o popover aberto caber numa tela de 900 pt.
+    private let maxSessions = 5
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -25,29 +28,46 @@ struct TodayView: View {
 
             LimitsCard(limits: state.limits, now: now)
 
-            dayTotal
+            historyHeader
 
-            sessionList
+            if showHistory {
+                dayBreakdown
+                sessionList
+            }
         }
         .padding(EdgeInsets(top: 4, leading: 12, bottom: 12, trailing: 12))
     }
 
-    // MARK: Total do dia
+    // MARK: Histórico do dia
 
-    @ViewBuilder
-    private var dayTotal: some View {
-        let summary = state.todaySummary(now: now)
-
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .firstTextBaseline) {
+    /// Linha sempre visível: total do dia e o controle para mostrar/ocultar o histórico.
+    private var historyHeader: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.15)) { showHistory.toggle() }
+        } label: {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .rotationEffect(.degrees(showHistory ? 90 : 0))
+                    .foregroundColor(Theme.secondary)
                 Text("Hoje")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(Theme.secondary)
                 Spacer()
-                Text(Formatters.duration(summary.total))
+                Text(Formatters.duration(state.todaySummary(now: now).total))
                     .font(Theme.mono(13, .semibold))
             }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(showHistory ? "Ocultar histórico de hoje" : "Mostrar histórico de hoje")
+    }
 
+    @ViewBuilder
+    private var dayBreakdown: some View {
+        let summary = state.todaySummary(now: now)
+
+        VStack(alignment: .leading, spacing: 12) {
             StackedBar(segments: summary.byProvider.map {
                 .init(id: $0.provider.rawValue, value: $0.seconds, color: Theme.color(for: $0.provider))
             })
