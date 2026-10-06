@@ -8,8 +8,9 @@ struct TodayView: View {
     @AppStorage(Preferences.Key.showTodayHistory) private var showHistory = false
     let now: Date
 
-    /// Sem rolagem na janela da barra de menus: listamos as mais recentes.
-    private let maxSessions = 8
+    /// Sem rolagem na janela da barra de menus: listamos as mais recentes, o bastante
+    /// para o popover aberto caber numa tela de 900 pt.
+    private let maxSessions = 5
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

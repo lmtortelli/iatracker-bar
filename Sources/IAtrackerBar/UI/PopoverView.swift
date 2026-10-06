@@ -29,6 +29,9 @@ struct PopoverView: View {
             footer
         }
         .frame(width: 360)
+        // A janela do MenuBarExtra assume a altura proposta pelo conteúdo: sem isto ela pode
+        // crescer até a altura da tela e o conteúdo fica centralizado, longe da barra de menus.
+        .fixedSize(horizontal: false, vertical: true)
         .font(.system(size: 12))
         .onAppear { state.popoverOpened() }
         .background(quitShortcut)
