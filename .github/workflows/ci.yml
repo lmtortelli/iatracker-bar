@@ -1,0 +1,63 @@
+name: CI
+
+# Pull requests para a main: título semântico + build + suíte completa de testes.
+# Também é chamado pelo workflow de Release antes de publicar.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened]
+  workflow_call:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  pr-title:
+    name: Título do PR (commit semântico)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verifica o título
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|perf|refactor|docs|test|build|ci|chore|style|revert)(\([^)]+\))?!?: .+'
+          if [[ ! "$TITLE" =~ $pattern ]]; then
+            echo "::error::O título do PR vira a mensagem do commit no squash e define a versão. Use o padrão semântico, ex.: 'feat: …', 'fix(ui): …', 'feat!: …'."
+            exit 1
+          fi
+          echo "Título ok: $TITLE"
+
+  tests:
+    name: Build e testes (macOS)
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache do Swift Package Manager
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Toolchain
+        run: swift --version
+
+      - name: Build
+        run: swift build
+
+      - name: Testes do app
+        run: swift run iatracker-tests
+
+      - name: Testes do versionamento semântico
+        run: scripts/test-versioning.sh
+
+      - name: Monta o .app (release)
+        run: scripts/build-app.sh release

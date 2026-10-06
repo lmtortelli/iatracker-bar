@@ -1,0 +1,74 @@
+name: Release
+
+# Merge na main: roda a suíte de testes e, se houver feat/fix/breaking change desde a última
+# tag, gera o app universal e publica o GitHub Release com a nova versão (SemVer).
+#   fix/perf → patch · feat → minor · tipo! ou "BREAKING CHANGE:" → major
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  tests:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: Versão e release
+    needs: tests
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Calcula a próxima versão
+        id: version
+        run: |
+          scripts/next-version.sh | tee -a "$GITHUB_OUTPUT"
+
+      - name: Sem mudanças que gerem versão
+        if: steps.version.outputs.bump == 'none'
+        env:
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: |
+          echo "Nenhum feat, fix ou breaking change desde ${PREVIOUS:-o início}: nenhum release gerado." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Cache do Swift Package Manager
+        if: steps.version.outputs.bump != 'none'
+        uses: actions/cache@v4
+        with:
+          path: .build
+          key: spm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Package.resolved') }}
+          restore-keys: spm-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Gera o app universal e o .zip
+        if: steps.version.outputs.bump != 'none'
+        env:
+          SKIP_TESTS: "1"
+          VERSION: ${{ steps.version.outputs.version }}
+        run: scripts/build-release.sh "$VERSION"
+
+      - name: Notas da versão
+        if: steps.version.outputs.bump != 'none'
+        env:
+          PREVIOUS: ${{ steps.version.outputs.previous }}
+        run: scripts/release-notes.sh "$PREVIOUS" > build/release-notes.md
+
+      - name: Publica tag e release
+        if: steps.version.outputs.bump != 'none'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+          BUMP: ${{ steps.version.outputs.bump }}
+        run: |
+          gh release create "v$VERSION" "build/IAtracker-bar-$VERSION.zip" \
+            --target "$GITHUB_SHA" \
+            --title "IAtracker-bar $VERSION" \
+            --notes-file build/release-notes.md
+          echo "Publicado v$VERSION ($BUMP)." >> "$GITHUB_STEP_SUMMARY"

@@ -1,5 +1,8 @@
 # IAtracker-bar
 
+[![CI](https://github.com/lmtortelli/iatracker-bar/actions/workflows/ci.yml/badge.svg)](https://github.com/lmtortelli/iatracker-bar/actions/workflows/ci.yml)
+[![Release](https://github.com/lmtortelli/iatracker-bar/actions/workflows/release.yml/badge.svg)](https://github.com/lmtortelli/iatracker-bar/releases)
+
 **Quanto tempo você passa com IA, em qual projeto e quanto ainda resta do seu plano — na barra de menus do Mac.**
 
 O IAtracker-bar é um app nativo de barra de menus para macOS que registra sozinho o uso do **Claude** e do **Gemini** (no navegador, no app Claude, no Claude Code e no Gemini CLI), separa o tempo por projeto e mostra os limites do plano — com aviso quando estiver perto do fim e quando a janela renovar.
@@ -102,6 +105,8 @@ swift run IAtrackerBar --demo            # roda com os dados fictícios do prot�
 swift run IAtrackerBar --snapshot docs/images   # gera as imagens deste README
 scripts/build-app.sh                     # build/IAtracker-bar.app
 scripts/build-release.sh 0.1.0           # testes + app universal + build/IAtracker-bar-0.1.0.zip
+scripts/next-version.sh                  # próxima versão pelos commits semânticos
+scripts/test-versioning.sh               # testes do cálculo de versão
 ```
 
 - `Sources/IAtrackerBarCore` — lógica testável: modelos, banco, detecção, sessões, leitura de logs, projetos, limites, avisos, relatório.
@@ -109,6 +114,26 @@ scripts/build-release.sh 0.1.0           # testes + app universal + build/IAtrac
 - `Tests/` — testes e fixtures (logs fictícios e resposta anonimizada do endpoint de uso).
 - `scripts/inspect-local-logs.py` e `scripts/probe-claude-usage.py` — inspecionam a estrutura dos logs locais e da resposta de limites sem imprimir conteúdo nem tokens.
 - `CLAUDE.md` — arquitetura, decisões e formatos verificados. `design/` — handoff de design original.
+
+## Versões e releases
+
+Os releases são gerados automaticamente pelo GitHub Actions a partir de **commits semânticos** ([Conventional Commits](https://www.conventionalcommits.org/pt-br/)), seguindo o [SemVer](https://semver.org/lang/pt-BR/):
+
+| Commit | Versão | Exemplo |
+|---|---|---|
+| `fix:` ou `perf:` | patch | 0.1.0 → 0.1.1 |
+| `feat:` | minor | 0.1.0 → 0.2.0 |
+| `feat!:` / `fix!:` ou `BREAKING CHANGE:` no corpo | major | 0.1.0 → 1.0.0 |
+| `docs:`, `chore:`, `ci:`, `refactor:`, `test:`, `style:`, `build:` | nenhum release | — |
+
+- **Pull request para `main`** ([`ci.yml`](.github/workflows/ci.yml)): build, suíte completa de testes, testes do versionamento e verificação de que o **título do PR** é semântico (ele vira a mensagem do commit no merge por squash).
+- **Merge na `main`** ([`release.yml`](.github/workflows/release.yml)): roda a mesma suíte; se houver `feat`, `fix`/`perf` ou breaking change desde a última tag, calcula a versão (`scripts/next-version.sh`), gera o app universal e publica a tag `vX.Y.Z` com o `.zip` e as notas em [Releases](https://github.com/lmtortelli/iatracker-bar/releases).
+
+Para conferir localmente qual seria a próxima versão:
+
+```bash
+scripts/next-version.sh
+```
 
 ## Limitações conhecidas
 

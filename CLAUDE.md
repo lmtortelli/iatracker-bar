@@ -57,6 +57,7 @@ scripts/build-app.sh
 - Preferências numa `NSWindow` própria (`PreferencesWindow`): a cena `Settings` abre atrás das janelas em app `LSUIElement`.
 - Aba Hoje com foco nos limites: o histórico do dia (barra por operador, legenda e sessões) fica **recolhido por padrão** atrás da linha "› Hoje · total"; a escolha é lembrada em `UserDefaults["showTodayHistory"]`.
 - Sem rolagem no popover: aberto, o histórico lista as 5 sessões mais recentes (cabe em tela de 900 pt).
+- Cantos: popover 16 pt e cards 12 pt (curva contínua), mais arredondados que o protótipo a pedido. A janela do `MenuBarExtra` é arredondada por `PopoverWindowStyler` (raio aplicado na view de conteúdo e superiores, fundo da janela transparente).
 - `PopoverView` usa `.fixedSize(vertical: true)`: sem isso a janela do `MenuBarExtra` pode crescer até a altura da tela e centralizar o conteúdo, deixando um vão abaixo da barra de menus.
 - Renovação em até 24 h mostra só a hora (`renova 04:00`); depois disso, dia + hora (`renova Qui 09:00`).
 - ⌘Q no popover e "Sair do IAtracker-bar" em Preferências › Geral (não há menu nem Dock).
@@ -218,3 +219,9 @@ Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de c
 - `scripts/build-release.sh`: roda os testes, gera o app **universal** (compilação cruzada `--triple x86_64-apple-macosx13.0` + `lipo`, funciona sem Xcode) e o `.zip` com `ditto`, e imprime SHA-256 e os comandos de tag/release.
 - App assinado ad hoc e não notarizado: instalação exige `xattr -dr com.apple.quarantine /Applications/IAtracker-bar.app` (documentado no README).
 - Imagens do README em `docs/images/`, geradas por `--snapshot` com `DemoData`.
+
+## CI e releases (GitHub Actions)
+- `.github/workflows/ci.yml` — em PR para `main` (e chamado pelo release): título do PR semântico, `swift build`, `swift run iatracker-tests`, `scripts/test-versioning.sh` e montagem do `.app`. Runner `macos-15`; testes não dependem do fuso (verificados em UTC e America/Los_Angeles).
+- `.github/workflows/release.yml` — push na `main`: chama o CI e, se `scripts/next-version.sh` indicar bump, roda `SKIP_TESTS=1 scripts/build-release.sh <versão>`, gera notas com `scripts/release-notes.sh` e publica com `gh release create v<versão> --target $GITHUB_SHA`.
+- Versionamento SemVer pelos commits desde a última tag `v*`: `fix`/`perf` → patch, `feat` → minor, `tipo!` ou `BREAKING CHANGE:` → major; demais tipos não geram release. Sem tag, a base é 0.0.0 (o primeiro release com `feat` é 0.1.0).
+- Mensagens de commit e títulos de PR **devem** seguir o commit semântico (o título vira o commit no squash).
