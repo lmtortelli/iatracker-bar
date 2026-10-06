@@ -15,8 +15,9 @@ swift build                              # compila tudo
 swift run iatracker-tests                  # testes (mini-harness; sai com 1 se falhar)
 swift run IAtrackerBar                      # roda o app com coleta real (~/Library/Application Support/IAtrackerBar)
 swift run IAtrackerBar --demo               # dados fictícios do protótipo, banco em memória
-swift run IAtrackerBar --snapshot <pasta>   # DEBUG: salva PNGs do popover (claro/escuro) e sai
-scripts/build-app.sh [debug|release]     # gera build/IAtracker-bar.app
+swift run IAtrackerBar --snapshot docs/images   # DEBUG: regenera as imagens do README (dados fictícios) e sai
+scripts/build-app.sh [debug|release]     # gera build/IAtracker-bar.app (UNIVERSAL=1 para arm64 + x86_64)
+scripts/build-release.sh 0.1.0           # testes + app universal + build/IAtracker-bar-0.1.0.zip
 ```
 
 ## Estrutura
@@ -209,3 +210,9 @@ Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de c
 
 ### Limites do Claude — não verificável nesta máquina (05/10/2026)
 `scripts/probe-claude-usage.py` (não imprime o token) mostrou que o item `Claude Code-credentials` existe com os campos `accessToken`, `expiresAt`, `refreshToken`, `refreshTokenExpiresAt`, `scopes`, `subscriptionType`, `rateLimitTier`, mas com `accessToken` vazio e `expiresAt` = 0 (Claude Code usado só pelo app desktop, sem `claude /login` no terminal). Quando houver token válido, rodar `python3 scripts/probe-claude-usage.py --save Tests/Fixtures/claude_usage.json` e trocar a fixture sintética (`claude_usage.synthetic.json`) pela real. Candidato: `GET https://api.anthropic.com/api/oauth/usage` com `Authorization: Bearer <accessToken>` e `anthropic-beta: oauth-2025-04-20`; resposta esperada `{"five_hour": {"utilization": 0–100, "resets_at": ISO 8601}, "seven_day": {…}, "seven_day_opus": {…}|null}`. Salvar resposta real anonimizada em `Tests/Fixtures/claude_usage.json` antes da Fase 4.
+
+## Fase 6 — distribuição
+- Nome do projeto: **IAtracker-bar** (repositório `lmtortelli/iatracker-bar`). Antes se chamava "Bandeja IA": o app migra `~/Library/Application Support/BandejaIA/bandeja.sqlite` e as preferências do bundle `io.github.bandejaia` na primeira execução.
+- `scripts/build-release.sh`: roda os testes, gera o app **universal** (compilação cruzada `--triple x86_64-apple-macosx13.0` + `lipo`, funciona sem Xcode) e o `.zip` com `ditto`, e imprime SHA-256 e os comandos de tag/release.
+- App assinado ad hoc e não notarizado: instalação exige `xattr -dr com.apple.quarantine /Applications/IAtracker-bar.app` (documentado no README).
+- Imagens do README em `docs/images/`, geradas por `--snapshot` com `DemoData`.
