@@ -55,7 +55,8 @@ scripts/build-app.sh
 - Item da barra: a bolinha + mini-barra é um `NSImage` colorido (a barra de menus só aceita imagem + texto).
 - Botão `Projeto ▾` abre um `NSMenu` (o `Menu` do SwiftUI ignora o estilo customizado).
 - Preferências numa `NSWindow` própria (`PreferencesWindow`): a cena `Settings` abre atrás das janelas em app `LSUIElement`.
-- Sem rolagem no popover: a aba Hoje lista as 8 sessões mais recentes.
+- Aba Hoje com foco nos limites: o histórico do dia (barra por operador, legenda e sessões) fica **recolhido por padrão** atrás da linha "› Hoje · total"; a escolha é lembrada em `UserDefaults["showTodayHistory"]`.
+- Sem rolagem no popover: aberto, o histórico lista as 8 sessões mais recentes.
 - Renovação em até 24 h mostra só a hora (`renova 04:00`); depois disso, dia + hora (`renova Qui 09:00`).
 - ⌘Q no popover e "Sair do IAtracker-bar" em Preferências › Geral (não há menu nem Dock).
 
