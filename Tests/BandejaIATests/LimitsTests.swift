@@ -3,14 +3,16 @@ import Foundation
 
 enum ClaudeLimitsTests {
     static let all: [TestCase] = [
-        ("parser lê janelas, ignora nulas e chaves extras", {
-            let fetched = date(2026, 10, 5, 14, 20)
-            let snapshots = try ClaudeLimits.parse(try fixture("claude_usage.synthetic.json"), fetchedAt: fetched)
+        ("parser lê a resposta real (anonimizada) do endpoint de uso", {
+            let fetched = date(2026, 10, 5, 20, 59)
+            let snapshots = try ClaudeLimits.parse(try fixture("claude_usage.json"), fetchedAt: fetched)
+            // Janelas por modelo vêm nulas; dezenas de chaves extras são ignoradas.
             expectEqual(snapshots.map(\.window), ["five_hour", "seven_day"])
-            expectEqual(snapshots.map(\.usedPct), [63, 40])
+            expectEqual(snapshots.map(\.usedPct), [92, 11])
             expectEqual(snapshots.first?.source, .official)
-            // 19:05 UTC = 16:05 em São Paulo; fração de microssegundos aceita.
-            expectEqual(snapshots.first?.resetAt, date(2026, 10, 5, 16, 5))
+            // 00:20 UTC de 6 out = 21:20 de 5 out em São Paulo; microssegundos no ISO 8601.
+            expectEqual(snapshots.first.flatMap(\.resetAt).map { Int($0.timeIntervalSince(date(2026, 10, 5, 21, 20))) }, 0)
+            expectEqual(snapshots.last.flatMap(\.resetAt).map { Int($0.timeIntervalSince(date(2026, 10, 12, 2, 0))) }, 0)
         }),
         ("parser rejeita resposta sem janelas", {
             do {

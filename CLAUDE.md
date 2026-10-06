@@ -158,5 +158,50 @@ Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de c
 ### Gemini CLI — não verificável nesta máquina
 `~/.gemini/` não tem `tmp/`, `settings.json` nem logs do CLI (só `GEMINI.md`; existe `antigravity-backup/`, que é de outro app e deve ser ignorado). Implementar o leitor de forma tolerante, para o formato esperado: `~/.gemini/tmp/<hash>/logs.json` (array de `{sessionId, messageId, type, timestamp, …}`, contar `type == "user"` por dia de cota) e `~/.gemini/tmp/<hash>/chats/session-*.json`. Alternativa: `telemetry.outfile` em `~/.gemini/settings.json`. Revalidar com o script depois de usar o Gemini CLI.
 
+### Limites do Claude — verificado em 05/10/2026
+- `GET https://api.anthropic.com/api/oauth/usage` com `Authorization: Bearer <accessToken>` + `anthropic-beta: oauth-2025-04-20` → HTTP 200. Resposta anonimizada em `Tests/Fixtures/claude_usage.json` (gerada por `scripts/probe-claude-usage.py --save …`, que não imprime o token).
+- `five_hour` e `seven_day`: `{utilization: 0–100, resets_at: ISO 8601 com microssegundos, limit_dollars, used_dollars, remaining_dollars, locked_reason}`. Janelas por modelo (`seven_day_opus`, `seven_day_sonnet`, …) e várias chaves internas vêm `null`. Há também `limits[]` (percent, severity, is_active), `extra_usage`, `spend` e `seven_day_breakdown` — não usados.
+- O token só existe depois de `/login` no Claude Code do terminal; o app desktop não deixa token utilizável no Keychain. Itens `Claude Code-credentials-<hash>` antigos ficam com token vazio.
+- Não testado: token de longa duração (`claude setup-token`) e `sessionKey` do claude.ai.
+
+### Implementação (Fase 4)
+- `ClaudeLimits.parse` aceita as janelas `five_hour`, `seven_day`, `seven_day_opus`, `seven_day_sonnet` (nulas são ignoradas; exige 5 h ou semanal). Renovação vencida zera o uso até a próxima consulta.
+- Itens do Keychain: versões novas do Claude Code criam `Claude Code-credentials-<hash>` (um por pasta de configuração) além do item sem sufixo. O app lista os atributos (sem pedido de permissão), lê só os modificados nas últimas 24 h, do mais recente ao mais antigo, e usa o primeiro com token válido.
+- `ClaudeProvider`: ordem das credenciais conforme Preferências (padrão: token do Claude Code, depois `sessionKey`). Token em memória até expirar; sem token válido, relê o Keychain no máximo a cada 30 min; se o usuário negar o pedido, não pergunta de novo na execução. Nunca renova o token (isso rotacionaria o refresh token do Claude Code).
+- `LimitsService`: consulta a cada 3 min, ao abrir o popover (mínimo 30 s entre consultas) e 10 s após o fim de uma sessão do Claude; erro → backoff 60 s, 120 s… até 30 min. Snapshots oficiais ficam na tabela por 7 dias e valem para exibição por até 6 h; depois disso, ou sem credencial, a janela de 5 h é **estimada** pelos tokens do Claude Code das últimas 5 horas (`ClaudeEstimator`).
+- Orçamento da estimativa: padrão 4 mi tokens/5 h (arbitrário) até ser **calibrado** por uma leitura oficial com uso ≥ 5% (tokens locais ÷ uso). Estimativa sem calibração não gera notificação.
+- Gemini app: prompts = sessões web no dia de cota × taxa (Preferências, padrão 4) + contador exato `web_prompts` (reservado para uma futura extensão). CLI: contador `cli_requests` ÷ 1000.
+- Notificações (`LimitAlerts`): uma por janela, faixa (80/100) e período de renovação; pular de <80 para 100 avisa só 100. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
+- Assinatura ad hoc: o macOS pede de novo a permissão do Keychain a cada build.
+
+## Atribuição de projeto (ProjectResolver)
+1. Sessão com `manual_project` → mantém.
+2. `cwd` (Claude Code / Gemini CLI) → raiz git → regra `cwd` ou nome da pasta.
+3. Título da aba / nome do Project no claude.ai → regras `title`/`domain`.
+4. Último projeto usado.
+
+## Permissões
+Primeira execução: tela de onboarding pedindo Acessibilidade e Automação (por navegador), com botões que abrem os painéis corretos de Ajustes do Sistema. Preferências › Permissões mostra o status.
+
+## Regras de código
+- `@MainActor` para estado de UI; coleta e IO em actors próprios.
+- Sem force unwrap fora de testes. Erros de rede nunca derrubam a UI.
+- Formatadores: duração `3h 05m` / `41m`; horas `HH:mm`; dias abreviados pt-BR.
+- Toda a interface em **português (pt-BR)**.
+- Testes para: parser JSONL do Claude Code, parser de limites, ProjectResolver, agregações do relatório.
+
+## Fase 0 — investigação (estado)
+Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de campos, tipos e contagens, nunca valores. Liberado em `~/.claude/settings.json` com a regra `Bash(python3 …/scripts/inspect-local-logs.py*)`.
+
+### Claude Code — verificado em 05/10/2026
+- Caminho: `~/.claude/projects/<cwd-com-hifens>/<sessionId>.jsonl`, uma linha JSON por evento.
+- Campos comuns em `user`/`assistant`: `type`, `timestamp` (ISO 8601), `sessionId` (uuid), `cwd` (caminho absoluto), `gitBranch`, `version`, `entrypoint`, `isSidechain`, `uuid`, `parentUuid`; subagentes trazem `agentId`.
+- `assistant`: `message.model`, `message.id`, `requestId` e `message.usage` com `input_tokens`, `output_tokens`, `cache_creation_input_tokens`, `cache_read_input_tokens` (+ `cache_creation.ephemeral_5m/1h_input_tokens`, `service_tier`, `speed`).
+- Outros `type` presentes e **ignoráveis** pelo parser: `queue-operation`, `attachment`, `last-prompt`, `custom-title`, `ai-title`, `agent-name`, `file-history-snapshot`, `file-history-delta`, `atis-latch`, `system`.
+- Regras do parser: ler só `type`, `timestamp`, `cwd`, `sessionId`, `isSidechain`/`agentId`, `message.model`, `message.id`/`requestId` e `message.usage`; **nunca** `message.content`. A mesma resposta pode ocupar várias linhas com o mesmo `message.id`: deduplicar antes de somar tokens. `cwd` → raiz git → projeto.
+
+### Gemini CLI — não verificável nesta máquina
+`~/.gemini/` não tem `tmp/`, `settings.json` nem logs do CLI (só `GEMINI.md`; existe `antigravity-backup/`, que é de outro app e deve ser ignorado). Implementar o leitor de forma tolerante, para o formato esperado: `~/.gemini/tmp/<hash>/logs.json` (array de `{sessionId, messageId, type, timestamp, …}`, contar `type == "user"` por dia de cota) e `~/.gemini/tmp/<hash>/chats/session-*.json`. Alternativa: `telemetry.outfile` em `~/.gemini/settings.json`. Revalidar com o script depois de usar o Gemini CLI.
+
 ### Limites do Claude — não verificável nesta máquina (05/10/2026)
 `scripts/probe-claude-usage.py` (não imprime o token) mostrou que o item `Claude Code-credentials` existe com os campos `accessToken`, `expiresAt`, `refreshToken`, `refreshTokenExpiresAt`, `scopes`, `subscriptionType`, `rateLimitTier`, mas com `accessToken` vazio e `expiresAt` = 0 (Claude Code usado só pelo app desktop, sem `claude /login` no terminal). Quando houver token válido, rodar `python3 scripts/probe-claude-usage.py --save Tests/Fixtures/claude_usage.json` e trocar a fixture sintética (`claude_usage.synthetic.json`) pela real. Candidato: `GET https://api.anthropic.com/api/oauth/usage` com `Authorization: Bearer <accessToken>` e `anthropic-beta: oauth-2025-04-20`; resposta esperada `{"five_hour": {"utilization": 0–100, "resets_at": ISO 8601}, "seven_day": {…}, "seven_day_opus": {…}|null}`. Salvar resposta real anonimizada em `Tests/Fixtures/claude_usage.json` antes da Fase 4.

@@ -4,8 +4,9 @@ import Foundation
 ///
 /// Endpoint **não documentado** (frágil): `GET https://api.anthropic.com/api/oauth/usage`
 /// (token OAuth do Claude Code) ou `GET https://claude.ai/api/organizations/{org}/usage` (cookie `sessionKey`).
-/// Formato esperado — ainda não confirmado com uma resposta real (ver CLAUDE.md › Fase 0):
-/// `{"five_hour": {"utilization": 0–100, "resets_at": ISO 8601}, "seven_day": {…}, "seven_day_opus": {…}|null}`
+/// Formato confirmado em 05/10/2026 (fixture `Tests/Fixtures/claude_usage.json`):
+/// `{"five_hour": {"utilization": 0–100, "resets_at": ISO 8601 com microssegundos, …}, "seven_day": {…},
+///   "seven_day_opus": null, "seven_day_sonnet": null, …dezenas de chaves extras, "limits": […], "spend": {…}}`
 public enum ClaudeLimits {
     public static let fiveHour = "five_hour"
     public static let sevenDay = "seven_day"

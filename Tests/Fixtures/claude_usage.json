@@ -1,0 +1,127 @@
+{
+  "five_hour": {
+    "utilization": 92.0,
+    "resets_at": "2026-10-06T00:20:00.466779+00:00",
+    "limit_dollars": null,
+    "used_dollars": null,
+    "remaining_dollars": null,
+    "locked_reason": null
+  },
+  "seven_day": {
+    "utilization": 11.0,
+    "resets_at": "2026-10-12T05:00:00.466806+00:00",
+    "limit_dollars": null,
+    "used_dollars": null,
+    "remaining_dollars": null,
+    "locked_reason": null
+  },
+  "seven_day_oauth_apps": null,
+  "seven_day_opus": null,
+  "seven_day_sonnet": null,
+  "seven_day_cowork": null,
+  "seven_day_omelette": null,
+  "tangelo": null,
+  "iguana_necktie": null,
+  "omelette_promotional": null,
+  "nimbus_quill": null,
+  "cinder_cove": null,
+  "copper_kite": null,
+  "brass_thimble": null,
+  "harbor_lantern": null,
+  "wattle_ember": null,
+  "amber_ladder": null,
+  "amber_cistern": null,
+  "juniper_tide": null,
+  "cedar_ember": null,
+  "amber_gauge": null,
+  "extra_usage": {
+    "is_enabled": false,
+    "monthly_limit": 10000,
+    "used_credits": 0.0,
+    "utilization": 0.0,
+    "currency": "<str>",
+    "decimal_places": 2,
+    "disabled_reason": "<str>",
+    "user_disabled": false,
+    "spend_limit_reached": false,
+    "credits_ever_enabled": true,
+    "daily": null,
+    "weekly": null
+  },
+  "limits": [
+    {
+      "kind": "<str>",
+      "group": "<str>",
+      "percent": 92,
+      "severity": "<str>",
+      "resets_at": "2026-10-06T00:20:00.466779+00:00",
+      "scope": null,
+      "is_active": true
+    },
+    {
+      "kind": "<str>",
+      "group": "<str>",
+      "percent": 11,
+      "severity": "<str>",
+      "resets_at": "2026-10-12T05:00:00.466806+00:00",
+      "scope": null,
+      "is_active": false
+    }
+  ],
+  "spend": {
+    "used": {
+      "amount_minor": 0,
+      "currency": "<str>",
+      "exponent": 2
+    },
+    "limit": {
+      "amount_minor": 10000,
+      "currency": "<str>",
+      "exponent": 2
+    },
+    "percent": 0,
+    "severity": "<str>",
+    "enabled": false,
+    "disabled_reason": "<str>",
+    "cap": {
+      "money": {
+        "amount_minor": 10000,
+        "currency": "<str>",
+        "exponent": 2
+      },
+      "credits": null
+    },
+    "balance": null,
+    "auto_reload": null,
+    "disclaimer": "<str>",
+    "can_purchase_credits": false,
+    "can_toggle": false
+  },
+  "member_dashboard_available": false,
+  "seven_day_breakdown": {
+    "as_of": "2026-10-05T23:59:33.508438+00:00",
+    "window_started_at": "2026-10-05T05:00:00.466806+00:00",
+    "rows": [
+      {
+        "key": "<str>",
+        "display_name": "<str>",
+        "percent": 80
+      },
+      {
+        "key": "<str>",
+        "display_name": "<str>",
+        "percent": 13
+      },
+      {
+        "key": "<str>",
+        "display_name": "<str>",
+        "percent": 0
+      },
+      {
+        "key": "<str>",
+        "display_name": "<str>",
+        "percent": 7
+      }
+    ]
+  }
+}
