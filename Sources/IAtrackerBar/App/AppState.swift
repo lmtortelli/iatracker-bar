@@ -12,6 +12,8 @@ final class AppState: ObservableObject {
 
     @Published var tab: Tab = .today
     @Published var reportRange: ReportRange = .week
+    /// Histórico do dia na aba Hoje; volta recolhido sempre que o popover fecha.
+    @Published var showTodayHistory = false
 
     @Published private(set) var paused = false
     /// Sessões que tocam o dia de hoje, mais antigas primeiro.
@@ -79,6 +81,12 @@ final class AppState: ObservableObject {
 
     func checkClaudeNow() {
         limitsService?.checkClaudeNow()
+    }
+
+    /// Ao fechar o popover: volta ao estado inicial (aba Hoje, histórico recolhido).
+    func popoverClosed() {
+        showTodayHistory = false
+        tab = .today
     }
 
     /// Ao abrir o popover: dados frescos e, se permitido, nova consulta de limites.

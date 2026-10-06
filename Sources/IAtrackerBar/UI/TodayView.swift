@@ -2,10 +2,9 @@ import IAtrackerBarCore
 import SwiftUI
 
 /// Aba **Hoje**: sessão ativa e limites; o histórico do dia (total por operador e sessões)
-/// fica recolhido por padrão — o foco é nos limites.
+/// fica recolhido por padrão e volta a recolher quando o popover fecha — o foco é nos limites.
 struct TodayView: View {
     @EnvironmentObject private var state: AppState
-    @AppStorage(Preferences.Key.showTodayHistory) private var showHistory = false
     let now: Date
 
     /// Sem rolagem na janela da barra de menus: listamos as mais recentes, o bastante
@@ -30,7 +29,7 @@ struct TodayView: View {
 
             historyHeader
 
-            if showHistory {
+            if state.showTodayHistory {
                 dayBreakdown
                 sessionList
             }
@@ -43,12 +42,12 @@ struct TodayView: View {
     /// Linha sempre visível: total do dia e o controle para mostrar/ocultar o histórico.
     private var historyHeader: some View {
         Button {
-            withAnimation(.easeInOut(duration: 0.15)) { showHistory.toggle() }
+            state.showTodayHistory.toggle()
         } label: {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "chevron.right")
                     .font(.system(size: 10, weight: .semibold))
-                    .rotationEffect(.degrees(showHistory ? 90 : 0))
+                    .rotationEffect(.degrees(state.showTodayHistory ? 90 : 0))
                     .foregroundColor(Theme.secondary)
                 Text("Hoje")
                     .font(.system(size: 12, weight: .semibold))
@@ -60,7 +59,7 @@ struct TodayView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(showHistory ? "Ocultar histórico de hoje" : "Mostrar histórico de hoje")
+        .accessibilityLabel(state.showTodayHistory ? "Ocultar histórico de hoje" : "Mostrar histórico de hoje")
     }
 
     @ViewBuilder

@@ -32,6 +32,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         #endif
 
         Task { @MainActor in
+            guard !SingleInstance.handOffIfAlreadyRunning() else { return }
+            SingleInstance.terminateLegacyApp()
             let state = AppState.shared
             state.startCollecting()
             if !state.isDemo { OnboardingWindow.showIfNeeded(state: state) }

@@ -4,6 +4,7 @@ import SwiftUI
 /// Conteúdo da janela do `MenuBarExtra` (largura 360).
 struct PopoverView: View {
     @EnvironmentObject private var state: AppState
+    @State private var contentHeight: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -32,9 +33,14 @@ struct PopoverView: View {
         // A janela do MenuBarExtra assume a altura proposta pelo conteúdo: sem isto ela pode
         // crescer até a altura da tela e o conteúdo fica centralizado, longe da barra de menus.
         .fixedSize(horizontal: false, vertical: true)
-        .background(PopoverWindowStyler(cornerRadius: Theme.popoverRadius))
+        .background(GeometryReader { geometry in
+            Color.clear.preference(key: PopoverHeightKey.self, value: geometry.size.height)
+        })
+        .onPreferenceChange(PopoverHeightKey.self) { contentHeight = $0 }
+        .background(PopoverWindowStyler(cornerRadius: Theme.popoverRadius, contentHeight: contentHeight))
         .font(.system(size: 12))
         .onAppear { state.popoverOpened() }
+        .onDisappear { state.popoverClosed() }
         .background(quitShortcut)
     }
 
@@ -53,6 +59,13 @@ struct PopoverView: View {
             .buttonStyle(.plain)
             .foregroundColor(Theme.secondary)
             .keyboardShortcut(",", modifiers: .command)
+
+            Text("·").foregroundColor(Theme.secondary.opacity(0.6))
+
+            Button("Sair") { NSApp.terminate(nil) }
+                .buttonStyle(.plain)
+                .foregroundColor(Theme.secondary)
+                .help("Encerrar o IAtracker-bar (⌘Q)")
         }
         .font(.system(size: 12))
         .padding(.horizontal, 12)
@@ -75,6 +88,9 @@ struct PopoverView: View {
 /// sistema fica recortado junto — e recalcula a sombra a cada mudança de tamanho.
 struct PopoverWindowStyler: NSViewRepresentable {
     let cornerRadius: CGFloat
+    /// Altura do conteúdo: a janela do `MenuBarExtra` cresce sozinha, mas não encolhe
+    /// (ex.: ao recolher o histórico), então ajustamos à mão, mantendo o topo preso à barra.
+    let contentHeight: CGFloat
 
     func makeNSView(context: Context) -> NSView {
         let view = StylerView()
@@ -82,17 +98,41 @@ struct PopoverWindowStyler: NSViewRepresentable {
         return view
     }
 
-    func updateNSView(_ nsView: NSView, context: Context) {}
+    func updateNSView(_ nsView: NSView, context: Context) {
+        (nsView as? StylerView)?.fit(contentHeight: contentHeight)
+    }
 
     final class StylerView: NSView {
         var cornerRadius: CGFloat = 16
         private var resizeObserver: NSObjectProtocol?
+        private var pendingHeight: CGFloat = 0
+
+        func fit(contentHeight: CGFloat) {
+            pendingHeight = contentHeight
+            // Fora do ciclo de atualização do SwiftUI, para não redimensionar no meio do layout.
+            DispatchQueue.main.async { [weak self] in self?.applyHeight() }
+        }
+
+        private func applyHeight() {
+            guard let window, pendingHeight > 1 else { return }
+            var frame = window.frame
+            let content = window.contentRect(forFrameRect: frame)
+            let delta = pendingHeight.rounded() - content.height
+            guard abs(delta) >= 1 else { return }
+            frame.size.height += delta
+            frame.origin.y -= delta // mantém a borda de cima no lugar
+            window.setFrame(frame, display: true, animate: false)
+            window.invalidateShadow()
+        }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
             guard let window else { return }
-            DispatchQueue.main.async { [weak self] in self?.apply(to: window) }
+            DispatchQueue.main.async { [weak self] in
+                self?.apply(to: window)
+                self?.applyHeight()
+            }
             resizeObserver = NotificationCenter.default.addObserver(
                 forName: NSWindow.didResizeNotification, object: window, queue: .main
             ) { [weak window] _ in window?.invalidateShadow() }
@@ -115,5 +155,13 @@ struct PopoverWindowStyler: NSViewRepresentable {
         deinit {
             if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
         }
+    }
+}
+
+private struct PopoverHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
