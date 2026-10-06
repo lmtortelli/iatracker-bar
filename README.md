@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/images/logo.png" alt="Logo do IAtracker-bar: a runa ᚨ Ansuz em cobre sobre uma pedra escura, cercada por um anel de medidor verde e pela palavra IATRACKER em runas" width="160">
+</p>
+
 # IAtracker-bar
 
 [![CI](https://github.com/lmtortelli/iatracker-bar/actions/workflows/ci.yml/badge.svg)](https://github.com/lmtortelli/iatracker-bar/actions/workflows/ci.yml)
@@ -18,6 +22,8 @@ O IAtracker-bar é um app nativo de barra de menus para macOS que registra sozin
 </p>
 
 <sub>Imagens geradas pelo próprio app em modo demonstração, com dados fictícios.</sub>
+
+> O logo é **ᚨ Ansuz**, a runa de Odin no Futhark Antigo — sabedoria, comunicação, a voz — cuja haste é **ᛁ Isa**: juntas, **I** e **A**. Ela aparece gravada em cobre numa pedra rúnica, dentro de um medidor de uso, com IATRACKER escrito em runas na borda (ᛁᚨᛏᚱᚨᚲᚲᛖᚱ). Vetor em [`docs/logo.svg`](docs/logo.svg).
 
 ## O que ele faz
 
@@ -107,6 +113,7 @@ swift run IAtrackerBar --snapshot docs/images   # gera as imagens deste README
 scripts/build-app.sh                     # build/IAtracker-bar.app
 scripts/build-release.sh 0.1.0           # testes + app universal + build/IAtracker-bar-0.1.0.zip
 scripts/next-version.sh                  # próxima versão pelos commits semânticos
+swift scripts/make-icon.swift            # regenera o ícone (Resources/AppIcon.icns) e o logo (docs/)
 scripts/test-versioning.sh               # testes do cálculo de versão
 ```
 

@@ -142,7 +142,13 @@ struct OnboardingView: View {
 
     private var welcome: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Bem-vindo ao IAtracker-bar").font(.system(size: 22, weight: .semibold))
+            HStack(spacing: 14) {
+                Image(nsImage: NSApp.applicationIconImage)
+                    .resizable()
+                    .frame(width: 64, height: 64)
+                    .accessibilityHidden(true)
+                Text("Bem-vindo ao IAtracker-bar").font(.system(size: 22, weight: .semibold))
+            }
             VStack(alignment: .leading, spacing: 10) {
                 Bullet(symbol: "clock", text: "Mede quanto tempo você usa Claude e Gemini — no navegador, no app Claude e no Claude Code.")
                 Bullet(symbol: "folder", text: "Separa o tempo por projeto, pela pasta do git ou por regras suas.")
