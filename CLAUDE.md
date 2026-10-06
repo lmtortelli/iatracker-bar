@@ -2,6 +2,13 @@
 
 App de barra de menus para macOS que mede tempo de uso de assistentes de IA, atribui a projetos e mostra limites de plano. Operadores v1: **Claude** e **Gemini**. Especificação visual completa em `design/README.md` e protótipo em `design/IAtracker-bar v2.dc.html`.
 
+## Fluxo de trabalho no git (regra)
+- **Cada mudança tem a sua branch**: funcionalidade, correção, ajuste visual, documentação, CI etc. Nome `<tipo>/<descrição-curta>` com o tipo do commit semântico, ex.: `feat/logo-runico`, `fix/altura-popover`, `build/script-instalacao`, `docs/regra-branches`.
+- **Commits semânticos** (Conventional Commits, em pt-BR), só com o que pertence àquela mudança; um assunto por commit. O tipo define a versão no release (`fix`/`perf` → patch, `feat` → minor, `!`/`BREAKING CHANGE` → major).
+- **Um PR por branch**, com título semântico.
+- **Nunca agrupar** mudanças diferentes na mesma branch ou PR, a menos que o usuário peça explicitamente.
+- Se a mudança depende de outra ainda não mergeada, a branch sai da branch da qual depende e o PR aponta para ela; após o merge da base, o PR passa a apontar para a `main`.
+
 ## Stack
 - Swift 5.10+, SwiftUI, macOS 13+ (`MenuBarExtra` com `.menuBarExtraStyle(.window)`), `LSUIElement = YES` (sem ícone no Dock).
 - Persistência: SQLite via **GRDB** (Swift Package).
