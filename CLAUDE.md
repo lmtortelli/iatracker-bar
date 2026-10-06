@@ -18,6 +18,7 @@ swift run IAtrackerBar --demo               # dados fictícios do protótipo, ba
 swift run IAtrackerBar --snapshot docs/images   # DEBUG: regenera as imagens do README (dados fictícios) e sai
 scripts/build-app.sh [debug|release]     # gera build/IAtracker-bar.app (UNIVERSAL=1 para arm64 + x86_64)
 scripts/build-release.sh 0.1.0           # testes + app universal + build/IAtracker-bar-0.1.0.zip
+scripts/install.sh                       # compila e instala/atualiza em /Applications (mantém os dados)
 ```
 
 ## Estrutura
