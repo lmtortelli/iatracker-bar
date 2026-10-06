@@ -5,13 +5,13 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>pt-BR</string>
 	<key>CFBundleExecutable</key>
-	<string>BandejaIA</string>
+	<string>IAtrackerBar</string>
 	<key>CFBundleIdentifier</key>
-	<string>io.github.bandejaia</string>
+	<string>io.github.lmtortelli.iatracker-bar</string>
 	<key>CFBundleName</key>
-	<string>Bandeja IA</string>
+	<string>IAtracker-bar</string>
 	<key>CFBundleDisplayName</key>
-	<string>Bandeja IA</string>
+	<string>IAtracker-bar</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -23,7 +23,7 @@
 	<key>LSUIElement</key>
 	<true/>
 	<key>NSAppleEventsUsageDescription</key>
-	<string>O Bandeja IA lê apenas a URL da aba ativa do navegador para saber se você está usando Claude ou Gemini. Nenhum conteúdo da página é lido.</string>
+	<string>O IAtracker-bar lê apenas a URL da aba ativa do navegador para saber se você está usando Claude ou Gemini. Nenhum conteúdo da página é lido.</string>
 	<key>NSHumanReadableCopyright</key>
 	<string>Uso pessoal.</string>
 </dict>

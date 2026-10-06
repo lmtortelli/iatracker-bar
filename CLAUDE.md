@@ -1,29 +1,30 @@
-# Bandeja IA — instruções do projeto
+# IAtracker-bar — instruções do projeto
 
-App de barra de menus para macOS que mede tempo de uso de assistentes de IA, atribui a projetos e mostra limites de plano. Operadores v1: **Claude** e **Gemini**. Especificação visual completa em `design/README.md` e protótipo em `design/Bandeja IA v2.dc.html`.
+App de barra de menus para macOS que mede tempo de uso de assistentes de IA, atribui a projetos e mostra limites de plano. Operadores v1: **Claude** e **Gemini**. Especificação visual completa em `design/README.md` e protótipo em `design/IAtracker-bar v2.dc.html`.
 
 ## Stack
 - Swift 5.10+, SwiftUI, macOS 13+ (`MenuBarExtra` com `.menuBarExtraStyle(.window)`), `LSUIElement = YES` (sem ícone no Dock).
 - Persistência: SQLite via **GRDB** (Swift Package).
-- Sem sandbox; distribuição via GitHub Releases (app não notarizado). Documentar no README: `xattr -dr com.apple.quarantine /Applications/BandejaIA.app`.
+- Sem sandbox; distribuição via GitHub Releases (app não notarizado). Documentar no README: `xattr -dr com.apple.quarantine /Applications/IAtracker-bar.app`.
 - Sem dependências além de GRDB. Sem telemetria. Nada de conteúdo de conversa é lido ou salvo — só timestamps, origem, projeto e contadores.
 - **Build sem Xcode:** a máquina de desenvolvimento só tem Command Line Tools (Swift 5.10, SDK 14.4, sem XCTest). Por isso o projeto é um **Swift Package** (não `.xcodeproj`), GRDB fixado em `6.29.x` (GRDB 7 exige Swift 6) e o `.app` é montado por `scripts/build-app.sh` com `Resources/Info.plist` + assinatura ad hoc.
 
 ## Comandos
 ```bash
 swift build                              # compila tudo
-swift run bandeja-tests                  # testes (mini-harness; sai com 1 se falhar)
-swift run BandejaIA                      # roda o app com coleta real (~/Library/Application Support/BandejaIA)
-swift run BandejaIA --demo               # dados fictícios do protótipo, banco em memória
-swift run BandejaIA --snapshot <pasta>   # DEBUG: salva PNGs do popover (claro/escuro) e sai
-scripts/build-app.sh [debug|release]     # gera build/BandejaIA.app
+swift run iatracker-tests                  # testes (mini-harness; sai com 1 se falhar)
+swift run IAtrackerBar                      # roda o app com coleta real (~/Library/Application Support/IAtrackerBar)
+swift run IAtrackerBar --demo               # dados fictícios do protótipo, banco em memória
+swift run IAtrackerBar --snapshot docs/images   # DEBUG: regenera as imagens do README (dados fictícios) e sai
+scripts/build-app.sh [debug|release]     # gera build/IAtracker-bar.app (UNIVERSAL=1 para arm64 + x86_64)
+scripts/build-release.sh 0.1.0           # testes + app universal + build/IAtracker-bar-0.1.0.zip
 ```
 
 ## Estrutura
 ```
 Package.swift
 Sources/
-  BandejaIACore/        lógica pura, sem AppKit — tudo que tem teste mora aqui
+  IAtrackerBarCore/        lógica pura, sem AppKit — tudo que tem teste mora aqui
     Models/             Models.swift (registros GRDB + LimitWindow/ProviderLimits)
     Storage/            Database.swift (AppDatabase), Migrations.swift
     Activity/           ActivityClassifier.swift (foco/URL → operador), SessionTracker.swift (máquina de sessões)
@@ -33,14 +34,14 @@ Sources/
     Projects/           ProjectResolver.swift (cwd → raiz git, domínio, título, último usado), ProjectAssigner, GitRoot
     Report/             ReportAggregator.swift (Hoje, semana, 30 dias, por projeto)
     Support/            Formatters.swift, DemoData.swift
-  BandejaIA/            app SwiftUI/AppKit
-    App/                BandejaIAApp.swift, AppState.swift, MenuBarLabel.swift
+  IAtrackerBar/            app SwiftUI/AppKit
+    App/                IAtrackerBarApp.swift, AppState.swift, MenuBarLabel.swift
     Limits/             ClaudeProvider.swift (Keychain/sessionKey + HTTP, protocolo UsageProvider), LimitsService.swift (+ LimitNotifier)
     Collector/          ActivityMonitor, BrowserTabReader, IdleDetector (+ WindowTitleReader), LogWatcher (FSEvents)
     UI/                 Theme, PopoverView, TodayView, ReportView, LimitsCard, SessionRow, PreferencesView, PermissionsView
     Support/            Preferences.swift, Permissions.swift, Keychain.swift, Snapshot.swift (DEBUG)
 Tests/
-  BandejaIATests/       executável `bandeja-tests` (main.swift + Harness.swift + *Tests.swift)
+  IAtrackerBarTests/       executável `iatracker-tests` (main.swift + Harness.swift + *Tests.swift)
   Fixtures/             JSON/JSONL de exemplo anonimizados (acesso via Bundle.module)
 Resources/Info.plist    LSUIElement, NSAppleEventsUsageDescription
 scripts/build-app.sh
@@ -56,7 +57,7 @@ scripts/build-app.sh
 - Preferências numa `NSWindow` própria (`PreferencesWindow`): a cena `Settings` abre atrás das janelas em app `LSUIElement`.
 - Sem rolagem no popover: a aba Hoje lista as 8 sessões mais recentes.
 - Renovação em até 24 h mostra só a hora (`renova 04:00`); depois disso, dia + hora (`renova Qui 09:00`).
-- ⌘Q no popover e "Sair do Bandeja IA" em Preferências › Geral (não há menu nem Dock).
+- ⌘Q no popover e "Sair do IAtracker-bar" em Preferências › Geral (não há menu nem Dock).
 
 ## Modelo de dados
 - `session(id, provider, source, project_id, cwd, started_at, ended_at, manual_project BOOL)`
@@ -130,7 +131,7 @@ Adicionar um operador novo = nova implementação; nenhum outro arquivo deve mud
 - `LimitsService`: consulta a cada 3 min, ao abrir o popover (mínimo 30 s entre consultas) e 10 s após o fim de uma sessão do Claude; erro → backoff 60 s, 120 s… até 30 min. Snapshots oficiais ficam na tabela por 7 dias e valem para exibição por até 6 h; depois disso, ou sem credencial, a janela de 5 h é **estimada** pelos tokens do Claude Code das últimas 5 horas (`ClaudeEstimator`).
 - Orçamento da estimativa: padrão 4 mi tokens/5 h (arbitrário) até ser **calibrado** por uma leitura oficial com uso ≥ 5% (tokens locais ÷ uso). Estimativa sem calibração não gera notificação.
 - Gemini app: prompts = sessões web no dia de cota × taxa (Preferências, padrão 4) + contador exato `web_prompts` (reservado para uma futura extensão). CLI: contador `cli_requests` ÷ 1000.
-- Notificações (`LimitAlerts`): uma por janela, faixa (80/100) e período de renovação; pular de <80 para 100 avisa só 100. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
+- Notificações (`LimitAlerts`, configuráveis em Preferências › Avisos): "perto do limite" a partir de N% (padrão 80), "100%" e "renovou" quando a janela renova e o pico do período passou de X% (padrão 90). Uma vez por janela, faixa e período; pular direto para 100% avisa só 100%. Janelas observadas escolhidas pelo usuário (5 h, semanal, Gemini app/CLI). O estado (enviados + pico por período) fica em `UserDefaults["alertState"]`; renovação com mais de 6 h (app estava fechado) não é avisada. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
 - Assinatura ad hoc: o macOS pede de novo a permissão do Keychain a cada build.
 
 ## Atribuição de projeto (ProjectResolver)
@@ -175,7 +176,7 @@ Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de c
 - `LimitsService`: consulta a cada 3 min, ao abrir o popover (mínimo 30 s entre consultas) e 10 s após o fim de uma sessão do Claude; erro → backoff 60 s, 120 s… até 30 min. Snapshots oficiais ficam na tabela por 7 dias e valem para exibição por até 6 h; depois disso, ou sem credencial, a janela de 5 h é **estimada** pelos tokens do Claude Code das últimas 5 horas (`ClaudeEstimator`).
 - Orçamento da estimativa: padrão 4 mi tokens/5 h (arbitrário) até ser **calibrado** por uma leitura oficial com uso ≥ 5% (tokens locais ÷ uso). Estimativa sem calibração não gera notificação.
 - Gemini app: prompts = sessões web no dia de cota × taxa (Preferências, padrão 4) + contador exato `web_prompts` (reservado para uma futura extensão). CLI: contador `cli_requests` ÷ 1000.
-- Notificações (`LimitAlerts`): uma por janela, faixa (80/100) e período de renovação; pular de <80 para 100 avisa só 100. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
+- Notificações (`LimitAlerts`, configuráveis em Preferências › Avisos): "perto do limite" a partir de N% (padrão 80), "100%" e "renovou" quando a janela renova e o pico do período passou de X% (padrão 90). Uma vez por janela, faixa e período; pular direto para 100% avisa só 100%. Janelas observadas escolhidas pelo usuário (5 h, semanal, Gemini app/CLI). O estado (enviados + pico por período) fica em `UserDefaults["alertState"]`; renovação com mais de 6 h (app estava fechado) não é avisada. Exigem rodar como `.app` (UNUserNotificationCenter precisa de bundle).
 - Assinatura ad hoc: o macOS pede de novo a permissão do Keychain a cada build.
 
 ## Atribuição de projeto (ProjectResolver)
@@ -209,3 +210,9 @@ Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de c
 
 ### Limites do Claude — não verificável nesta máquina (05/10/2026)
 `scripts/probe-claude-usage.py` (não imprime o token) mostrou que o item `Claude Code-credentials` existe com os campos `accessToken`, `expiresAt`, `refreshToken`, `refreshTokenExpiresAt`, `scopes`, `subscriptionType`, `rateLimitTier`, mas com `accessToken` vazio e `expiresAt` = 0 (Claude Code usado só pelo app desktop, sem `claude /login` no terminal). Quando houver token válido, rodar `python3 scripts/probe-claude-usage.py --save Tests/Fixtures/claude_usage.json` e trocar a fixture sintética (`claude_usage.synthetic.json`) pela real. Candidato: `GET https://api.anthropic.com/api/oauth/usage` com `Authorization: Bearer <accessToken>` e `anthropic-beta: oauth-2025-04-20`; resposta esperada `{"five_hour": {"utilization": 0–100, "resets_at": ISO 8601}, "seven_day": {…}, "seven_day_opus": {…}|null}`. Salvar resposta real anonimizada em `Tests/Fixtures/claude_usage.json` antes da Fase 4.
+
+## Fase 6 — distribuição
+- Nome do projeto: **IAtracker-bar** (repositório `lmtortelli/iatracker-bar`). Antes se chamava "Bandeja IA": o app migra `~/Library/Application Support/BandejaIA/bandeja.sqlite` e as preferências do bundle `io.github.bandejaia` na primeira execução.
+- `scripts/build-release.sh`: roda os testes, gera o app **universal** (compilação cruzada `--triple x86_64-apple-macosx13.0` + `lipo`, funciona sem Xcode) e o `.zip` com `ditto`, e imprime SHA-256 e os comandos de tag/release.
+- App assinado ad hoc e não notarizado: instalação exige `xattr -dr com.apple.quarantine /Applications/IAtracker-bar.app` (documentado no README).
+- Imagens do README em `docs/images/`, geradas por `--snapshot` com `DemoData`.

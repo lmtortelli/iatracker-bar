@@ -113,7 +113,7 @@ def main():
         "Authorization": f"Bearer {token}",
         "anthropic-beta": "oauth-2025-04-20",
         "Accept": "application/json",
-        "User-Agent": "BandejaIA/0.1",
+        "User-Agent": "IAtrackerBar/0.1",
     })
     del token
     try:
