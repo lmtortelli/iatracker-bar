@@ -25,12 +25,21 @@ struct ReportView: View {
                     .font(Theme.mono(13, .semibold))
             }
 
-            DayBarChart(days: report.days, gap: report.range == .week ? 8 : 2)
-                .frame(height: 120)
+            if report.total == 0 {
+                Text("Ainda não há uso registrado neste período. Use o Claude ou o Gemini normalmente: o relatório se monta sozinho.")
+                    .font(.system(size: 12))
+                    .foregroundColor(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 120, alignment: .center)
+                    .multilineTextAlignment(.center)
+            } else {
+                DayBarChart(days: report.days, gap: report.range == .week ? 8 : 2)
+                    .frame(height: 120)
 
-            providerTable(report)
+                providerTable(report)
 
-            projectList(report)
+                projectList(report)
+            }
         }
         .padding(EdgeInsets(top: 4, leading: 12, bottom: 12, trailing: 12))
     }

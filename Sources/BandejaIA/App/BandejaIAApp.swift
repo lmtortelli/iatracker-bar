@@ -34,7 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             let state = AppState.shared
             state.startCollecting()
-            if !state.isDemo { OnboardingWindow.showIfNeeded() }
+            if !state.isDemo { OnboardingWindow.showIfNeeded(state: state) }
         }
     }
 

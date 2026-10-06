@@ -45,6 +45,30 @@ public final class AppDatabase: Sendable {
         }
     }
 
+    /// Renomeia; se já houver outro projeto com o nome, junta os dois (sessões e regras vão para ele).
+    /// Retorna o id do projeto resultante.
+    @discardableResult
+    public func renameProject(id: Int64, to name: String) throws -> Int64 {
+        let name = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return try writer.write { db in
+            guard !name.isEmpty else { return id }
+            if let other = try Project.filter(Column("name") == name && Column("id") != id).fetchOne(db),
+               let otherId = other.id {
+                try db.execute(sql: "UPDATE session SET project_id = ? WHERE project_id = ?", arguments: [otherId, id])
+                try db.execute(sql: "UPDATE project_rule SET project_id = ? WHERE project_id = ?", arguments: [otherId, id])
+                _ = try Project.deleteOne(db, key: id)
+                return otherId
+            }
+            try db.execute(sql: "UPDATE project SET name = ? WHERE id = ?", arguments: [name, id])
+            return id
+        }
+    }
+
+    /// Exclui o projeto: sessões ficam sem projeto, regras são removidas (chaves estrangeiras).
+    public func deleteProject(id: Int64) throws {
+        _ = try writer.write { db in try Project.deleteOne(db, key: id) }
+    }
+
     public func rules() throws -> [ProjectRule] {
         try writer.read { db in try ProjectRule.fetchAll(db) }
     }

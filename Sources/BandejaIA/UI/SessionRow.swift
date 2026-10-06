@@ -65,6 +65,7 @@ struct ProjectMenuButton: View {
         .accessibilityLabel("Projeto: \(projectName). Alterar projeto")
     }
 
+    @MainActor
     private func showMenu() {
         let menu = NSMenu()
         for project in projects {
@@ -77,19 +78,14 @@ struct ProjectMenuButton: View {
         menu.popUp(positioning: nil, at: NSEvent.mouseLocation, in: nil)
     }
 
+    @MainActor
     private func askNewProject() {
-        let alert = NSAlert()
-        alert.messageText = "Novo projeto"
-        alert.informativeText = "A sessão atual passa a contar para este projeto."
-        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 240, height: 24))
-        field.placeholderString = "Nome do projeto"
-        alert.accessoryView = field
-        alert.addButton(withTitle: "Criar")
-        alert.addButton(withTitle: "Cancelar")
-        alert.window.initialFirstResponder = field
-        NSApp.activate(ignoringOtherApps: true)
-        if alert.runModal() == .alertFirstButtonReturn {
-            onCreate(field.stringValue)
+        if let name = TextPrompt.ask(
+            title: "Novo projeto",
+            message: "A sessão atual passa a contar para este projeto.",
+            confirm: "Criar"
+        ) {
+            onCreate(name)
         }
     }
 }

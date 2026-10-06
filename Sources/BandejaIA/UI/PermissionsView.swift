@@ -2,22 +2,23 @@ import AppKit
 import BandejaIACore
 import SwiftUI
 
-/// Lista de permissões usada no onboarding e em Preferências › Permissões.
+/// Lista de permissões usada nas boas-vindas e em Preferências › Permissões.
 struct PermissionsList: View {
     @ObservedObject var model: PermissionsModel
 
     var body: some View {
-        Section("Automação — necessária") {
-            Text("Permite ler só a URL da aba ativa para saber se você está no claude.ai ou no Gemini.")
+        Section("Navegadores — Automação") {
+            Text("Permite ler só o endereço da aba ativa, para saber se você está no claude.ai ou no Gemini.")
                 .font(.caption)
                 .foregroundColor(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             if model.browsers.isEmpty {
-                Text(model.installedBrowsers.isEmpty ? "Nenhum navegador compatível instalado." : "Verificando…")
+                Text(model.installedBrowsers.isEmpty ? "Nenhum navegador compatível instalado (Safari, Chrome, Arc, Brave, Edge)." : "Verificando…")
                     .foregroundColor(Theme.secondary)
             }
             ForEach(model.browsers) { item in
                 HStack {
-                    StatusDot(status: item.status)
+                    StatusDot(color: Self.color(item.status))
                     VStack(alignment: .leading, spacing: 1) {
                         Text(item.browser.displayName)
                         Text(item.status.title).font(.caption).foregroundColor(Theme.secondary)
@@ -32,17 +33,19 @@ struct PermissionsList: View {
                         Button("Permitir") { model.requestAutomation(item.browser) }
                     }
                 }
+                .accessibilityElement(children: .combine)
             }
         }
 
         Section("Acessibilidade — opcional") {
             HStack {
-                StatusDot(status: model.accessibility ? .granted : .notDetermined)
+                StatusDot(color: model.accessibility ? Theme.statusActive : Theme.statusPaused)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Título da janela do app Claude")
-                    Text("Usado só para regras de projeto por título. Sem ela, o app Claude é detectado normalmente.")
+                    Text("Usado só em regras de projeto por título. Sem ela, o app Claude é detectado normalmente.")
                         .font(.caption)
                         .foregroundColor(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 if !model.accessibility {
@@ -51,19 +54,8 @@ struct PermissionsList: View {
             }
         }
     }
-}
 
-private struct StatusDot: View {
-    let status: PermissionsModel.Status
-
-    var body: some View {
-        Circle()
-            .fill(color)
-            .frame(width: 8, height: 8)
-            .accessibilityLabel(status.title)
-    }
-
-    private var color: Color {
+    static func color(_ status: PermissionsModel.Status) -> Color {
         switch status {
         case .granted: Theme.statusActive
         case .denied: Theme.error
@@ -73,45 +65,196 @@ private struct StatusDot: View {
     }
 }
 
-/// Primeira execução: explica o que é coletado e pede as permissões.
+// MARK: - Boas-vindas
+
+/// Primeira execução, em passos: o que é, navegadores, Claude, ajustes, pronto.
 struct OnboardingView: View {
-    @StateObject private var model = PermissionsModel()
+    enum Step: Int, CaseIterable {
+        case welcome, browsers, claude, settings, done
+    }
+
+    @EnvironmentObject private var state: AppState
+    @StateObject private var permissions = PermissionsModel()
+    @State private var step: Step
     let onFinish: () -> Void
+
+    init(initialStep: Step = .welcome, onFinish: @escaping () -> Void) {
+        _step = State(initialValue: initialStep)
+        self.onFinish = onFinish
+    }
 
     private let poll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Bem-vindo ao Bandeja IA").font(.system(size: 20, weight: .semibold))
-                Text("O app mede quanto tempo você usa Claude e Gemini e em qual projeto. Ele registra só horários, origem e projeto — nenhum conteúdo de conversa é lido ou salvo.")
-                    .foregroundColor(Theme.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(20)
+        VStack(spacing: 0) {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
-            Form {
-                PermissionsList(model: model)
-            }
-            .formStyle(.grouped)
-
+            Divider()
             HStack {
-                Text("Você pode mudar isso depois em Preferências › Permissões.")
-                    .font(.caption)
-                    .foregroundColor(Theme.secondary)
+                progress
                 Spacer()
-                Button("Concluir", action: onFinish)
-                    .keyboardShortcut(.defaultAction)
+                if step != .welcome {
+                    Button("Voltar") { move(-1) }
+                }
+                if step == .done {
+                    Button("Começar", action: onFinish).keyboardShortcut(.defaultAction)
+                } else {
+                    Button(step == .welcome ? "Configurar" : "Continuar") { move(1) }
+                        .keyboardShortcut(.defaultAction)
+                }
             }
             .padding(16)
         }
-        .frame(width: 520, height: 520)
-        .onAppear { model.refresh() }
-        .onReceive(poll) { _ in model.refresh() }
+        .frame(width: 560, height: 540)
+        .onAppear { permissions.refresh() }
+        .onReceive(poll) { _ in if step == .browsers { permissions.refresh() } }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        switch step {
+        case .welcome: welcome
+        case .browsers: browsers
+        case .claude: claude
+        case .settings: settings
+        case .done: done
+        }
+    }
+
+    private var progress: some View {
+        HStack(spacing: 6) {
+            ForEach(Step.allCases, id: \.self) { item in
+                Circle()
+                    .fill(item == step ? Color.accentColor : Color.primary.opacity(0.15))
+                    .frame(width: 7, height: 7)
+            }
+        }
+        .accessibilityLabel("Passo \(step.rawValue + 1) de \(Step.allCases.count)")
+    }
+
+    private func move(_ delta: Int) {
+        step = Step(rawValue: step.rawValue + delta) ?? step
+        if step == .claude, state.claudeConnection == .unknown { state.checkClaudeNow() }
+    }
+
+    // MARK: Passos
+
+    private var welcome: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Bem-vindo ao Bandeja IA").font(.system(size: 22, weight: .semibold))
+            VStack(alignment: .leading, spacing: 10) {
+                Bullet(symbol: "clock", text: "Mede quanto tempo você usa Claude e Gemini — no navegador, no app Claude e no Claude Code.")
+                Bullet(symbol: "folder", text: "Separa o tempo por projeto, pela pasta do git ou por regras suas.")
+                Bullet(symbol: "gauge.with.dots.needle.33percent", text: "Mostra quanto resta dos limites do seu plano e avisa em 80% e 100%.")
+                Bullet(symbol: "lock", text: "Só horários, origem e projeto ficam salvos, neste Mac. Nenhum conteúdo de conversa é lido ou enviado.")
+            }
+            Spacer(minLength: 0)
+            MenuBarPreview(caption: "Ele mora na barra de menus, perto do relógio:")
+        }
+        .padding(24)
+    }
+
+    private var browsers: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            StepHeader(
+                title: "Navegadores",
+                text: "Para contar o uso no claude.ai e no Gemini, o app precisa ler o endereço da aba ativa. Clique em Permitir nos navegadores que você usa — o macOS vai confirmar. Pode pular e fazer depois."
+            )
+            Form { PermissionsList(model: permissions) }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+        }
+    }
+
+    private var claude: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            StepHeader(
+                title: "Limites do Claude",
+                text: "Com o login do Claude Code, o app mostra os limites oficiais da sua assinatura. Sem ele, mostra uma estimativa. Pode pular e fazer depois em Preferências › Operadores."
+            )
+            Form { Section { ClaudeConnectionView() } }
+                .formStyle(.grouped)
+                .scrollContentBackground(.hidden)
+        }
+    }
+
+    private var settings: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            StepHeader(title: "Ajustes rápidos", text: "Tudo isso pode ser mudado depois em Preferências.")
+            Form {
+                MenuBarMetricPicker()
+                GeminiQuotaStepper()
+                LaunchAtLoginToggle()
+            }
+            .formStyle(.grouped)
+            .scrollContentBackground(.hidden)
+        }
+    }
+
+    private var done: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("Tudo pronto").font(.system(size: 22, weight: .semibold))
+            Text("O Bandeja IA já está registrando. Use o Claude ou o Gemini normalmente e clique no item da barra de menus para ver o uso de hoje, os limites e o relatório.")
+                .fixedSize(horizontal: false, vertical: true)
+            MenuBarPreview(caption: "Procure por isto na barra de menus:")
+            Text("Dicas: ⌘, abre as Preferências com o popover aberto; ⌘Q encerra o app. Estas boas-vindas ficam em Preferências › Geral.")
+                .font(.caption)
+                .foregroundColor(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(24)
     }
 }
 
-/// Janelas auxiliares (Preferências, onboarding) gerenciadas à mão: em app `LSUIElement`,
+private struct StepHeader: View {
+    let title: String
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).font(.system(size: 18, weight: .semibold))
+            Text(text)
+                .foregroundColor(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+    }
+}
+
+private struct Bullet: View {
+    let symbol: String
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Image(systemName: symbol).frame(width: 18).foregroundColor(.accentColor)
+            Text(text).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Réplica do item da barra de menus, para a pessoa saber o que procurar.
+private struct MenuBarPreview: View {
+    @EnvironmentObject private var state: AppState
+    let caption: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(caption).font(.caption).foregroundColor(Theme.secondary)
+            HStack(spacing: 6) {
+                MenuBarLabel(state: state)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 4)
+            .background(Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+        }
+    }
+}
+
+/// Janelas auxiliares (Preferências, boas-vindas) gerenciadas à mão: em app `LSUIElement`,
 /// a cena `Settings` abre atrás das outras janelas e `showSettingsWindow:` não funciona no macOS 14+.
 @MainActor
 enum AuxiliaryWindow {
@@ -137,13 +280,18 @@ enum AuxiliaryWindow {
 
 @MainActor
 enum OnboardingWindow {
-    static func showIfNeeded() {
+    static func showIfNeeded(state: AppState) {
         guard !UserDefaults.standard.bool(forKey: Preferences.Key.onboardingCompleted) else { return }
+        show(state: state)
+    }
+
+    static func show(state: AppState) {
         AuxiliaryWindow.show(id: "onboarding", title: "Bandeja IA") {
             OnboardingView {
                 UserDefaults.standard.set(true, forKey: Preferences.Key.onboardingCompleted)
                 AuxiliaryWindow.close(id: "onboarding")
             }
+            .environmentObject(state)
         }
     }
 }

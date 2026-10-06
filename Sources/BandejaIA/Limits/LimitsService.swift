@@ -18,12 +18,25 @@ final class LimitsService {
     }
 
     var onUpdate: ([ProviderLimits]) -> Void = { _ in }
+    var onConnectionChange: (ClaudeConnection) -> Void = { _ in }
 
     private let database: AppDatabase
     private let claude = ClaudeProvider()
     private let notifier = LimitNotifier()
     private let logger = Logger(subsystem: "BandejaIA", category: "LimitsService")
-    private var claudeState = ClaudeState.unknown
+    private var claudeState = ClaudeState.unknown {
+        didSet { onConnectionChange(connection) }
+    }
+    private var lastSuccess: Date?
+
+    var connection: ClaudeConnection {
+        switch claudeState {
+        case .unknown: fetching ? .checking : .unknown
+        case .official: .connected(lastSuccess ?? .now)
+        case .noCredential: .notLoggedIn
+        case .failed: .failed
+        }
+    }
     private var backoff: TimeInterval = 0
     private var nextAllowedFetch = Date.distantPast
     private var fetching = false
@@ -52,6 +65,7 @@ final class LimitsService {
             return
         }
         fetching = true
+        onConnectionChange(connection)
         let provider = claude
         Task {
             let result: Result<[LimitSnapshot], Error>
@@ -65,6 +79,15 @@ final class LimitsService {
             fetching = false
             publish()
         }
+    }
+
+    /// Pedido explícito do usuário: ignora backoff e o intervalo de releitura do Keychain.
+    func checkClaudeNow() {
+        claude.allowKeychainRetry()
+        backoff = 0
+        nextAllowedFetch = .distantPast
+        claudeState = .unknown
+        refresh(force: true)
     }
 
     func refreshSoon(after seconds: TimeInterval = 10) {
@@ -82,6 +105,7 @@ final class LimitsService {
                 logger.error("Falha ao gravar limites: \(error.localizedDescription, privacy: .public)")
             }
             calibrate(with: snapshots, now: now)
+            lastSuccess = now
             claudeState = .official
             backoff = 0
             nextAllowedFetch = now.addingTimeInterval(Self.minInterval)
@@ -141,7 +165,7 @@ final class LimitsService {
             if !snapshots.isEmpty {
                 return ClaudeLimits.limits(from: snapshots, now: now, note: "Credencial indisponível; mostrando o último dado.")
             }
-            return estimate(now: now, note: "Sem credencial: estimado pelos tokens do Claude Code. Configure em Preferências › Operadores.")
+            return estimate(now: now, note: "Sem login no Claude Code: estimado pelos tokens. Veja Preferências › Operadores.")
         }
     }
 
@@ -172,6 +196,15 @@ final class LimitsService {
             cliRequests: (try? database.counter(.gemini, .cliRequests, day: day)) ?? 0
         )
     }
+}
+
+/// Estado da consulta oficial de limites do Claude, para onboarding e Preferências.
+enum ClaudeConnection: Equatable {
+    case unknown
+    case checking
+    case connected(Date)
+    case notLoggedIn
+    case failed
 }
 
 /// Notificações locais ao cruzar 80% e 100% (uma vez por janela e período).

@@ -9,8 +9,7 @@ protocol UsageProvider {
     func fetchLimits(now: Date) async throws -> [LimitSnapshot]
 }
 
-/// Limites oficiais do Claude. Credencial, na ordem escolhida em Preferências:
-/// token OAuth do Claude Code (Keychain, item `Claude Code-credentials`) ou `sessionKey` do claude.ai.
+/// Limites oficiais do Claude com o token OAuth que o Claude Code grava no Keychain após `/login`.
 /// O token nunca é renovado aqui (isso rotacionaria o refresh token do Claude Code) nem registrado em log.
 final class ClaudeProvider: UsageProvider, @unchecked Sendable {
     enum Failure: Error, Equatable {
@@ -34,21 +33,15 @@ final class ClaudeProvider: UsageProvider, @unchecked Sendable {
     }
 
     func fetchLimits(now: Date) async throws -> [LimitSnapshot] {
-        let preferSessionKey = UserDefaults.standard.string(forKey: Preferences.Key.claudeCredentialSource)
-            == ClaudeCredentialSource.sessionKey.rawValue
-        let attempts: [() async throws -> [LimitSnapshot]?] = preferSessionKey
-            ? [{ try await self.viaSessionKey(now: now) }, { try await self.viaOAuth(now: now) }]
-            : [{ try await self.viaOAuth(now: now) }, { try await self.viaSessionKey(now: now) }]
+        guard let snapshots = try await viaOAuth(now: now) else { throw Failure.noCredential }
+        return snapshots
+    }
 
-        var lastError: Failure = .noCredential
-        for attempt in attempts {
-            do {
-                if let snapshots = try await attempt() { return snapshots }
-            } catch let failure as Failure {
-                lastError = failure
-            }
-        }
-        throw lastError
+    /// "Verificar agora": volta a ler o Keychain mesmo que tenha falhado (ou sido negado) há pouco.
+    func allowKeychainRetry() {
+        lock.lock()
+        nextKeychainRead = .distantPast
+        lock.unlock()
     }
 
     // MARK: OAuth do Claude Code
@@ -155,26 +148,6 @@ final class ClaudeProvider: UsageProvider, @unchecked Sendable {
             }
             .sorted { $0.1 > $1.1 }
             .map(\.0)
-    }
-
-    // MARK: sessionKey do claude.ai
-
-    private func viaSessionKey(now: Date) async throws -> [LimitSnapshot]? {
-        guard let key = Keychain.read(account: Keychain.Account.claudeSessionKey), !key.isEmpty else { return nil }
-
-        guard let orgsURL = URL(string: "https://claude.ai/api/organizations") else { throw Failure.network }
-        var orgs = URLRequest(url: orgsURL, timeoutInterval: 15)
-        orgs.setValue("sessionKey=\(key)", forHTTPHeaderField: "Cookie")
-        let (data, response) = try await load(orgs)
-        try check(response)
-        guard let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]],
-              let org = list.first?["uuid"] as? String
-        else { throw Failure.parse }
-
-        guard let usageURL = URL(string: "https://claude.ai/api/organizations/\(org)/usage") else { throw Failure.parse }
-        var usage = URLRequest(url: usageURL, timeoutInterval: 15)
-        usage.setValue("sessionKey=\(key)", forHTTPHeaderField: "Cookie")
-        return try await perform(usage, now: now)
     }
 
     // MARK: HTTP

@@ -18,6 +18,9 @@ final class AppState: ObservableObject {
     @Published private(set) var todaySessions: [Session] = []
     @Published private(set) var projects: [Project] = []
     @Published private(set) var limits: [ProviderLimits] = []
+    @Published private(set) var claudeConnection = ClaudeConnection.unknown
+    /// Navegadores em que a Automação foi negada (aviso no popover).
+    @Published private(set) var deniedBrowsers: Set<Browser> = []
 
     let database: AppDatabase
     let isDemo: Bool
@@ -58,6 +61,7 @@ final class AppState: ObservableObject {
         guard !isDemo, monitor == nil else { return }
         let monitor = ActivityMonitor(database: database, paused: paused)
         monitor.onChange = { [weak self] in self?.reload() }
+        monitor.onAutomationChange = { [weak self] denied in self?.deniedBrowsers = denied }
         monitor.start() // antes dos logs: fecha sessões órfãs da execução anterior
         self.monitor = monitor
 
@@ -68,8 +72,13 @@ final class AppState: ObservableObject {
 
         let limitsService = LimitsService(database: database)
         limitsService.onUpdate = { [weak self] limits in self?.limits = limits }
+        limitsService.onConnectionChange = { [weak self] connection in self?.claudeConnection = connection }
         self.limitsService = limitsService
         limitsService.start()
+    }
+
+    func checkClaudeNow() {
+        limitsService?.checkClaudeNow()
     }
 
     /// Ao abrir o popover: dados frescos e, se permitido, nova consulta de limites.
@@ -210,6 +219,14 @@ final class AppState: ObservableObject {
         } catch {
             logger.error("Falha ao criar projeto: \(error.localizedDescription, privacy: .public)")
         }
+    }
+
+    func renameProject(id: Int64, to name: String) {
+        perform { try $0.renameProject(id: id, to: name) }
+    }
+
+    func deleteProject(id: Int64) {
+        perform { try $0.deleteProject(id: id) }
     }
 
     func addProject(named name: String) {

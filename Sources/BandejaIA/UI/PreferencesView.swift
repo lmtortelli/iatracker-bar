@@ -21,51 +21,65 @@ struct PreferencesView: View {
             PermissionsPane().tabItem { Label("Permissões", systemImage: "lock.shield") }
         }
         .padding(12)
-        .frame(width: 520, height: 440)
+        .frame(width: 540, height: 480)
     }
 }
 
 // MARK: - Geral
 
 private struct GeneralPane: View {
-    @AppStorage(Preferences.Key.menuBarMetric) private var metric = MenuBarMetric.claude5h.rawValue
+    @EnvironmentObject private var state: AppState
     @AppStorage(Preferences.Key.idleMinutes) private var idleMinutes = 2
-    @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
-    @State private var launchError: String?
 
     var body: some View {
         Form {
-            Picker("Métrica na barra de menus", selection: $metric) {
-                ForEach(MenuBarMetric.allCases) { Text($0.title).tag($0.rawValue) }
-            }
-
-            Toggle("Iniciar com o sistema", isOn: $launchAtLogin)
-                .onChange(of: launchAtLogin, perform: setLaunchAtLogin)
-            if let launchError {
-                Text(launchError).font(.caption).foregroundColor(Theme.error)
-            }
-
+            MenuBarMetricPicker()
+            LaunchAtLoginToggle()
             Stepper(value: $idleMinutes, in: 1...30) {
-                Text("Encerrar sessão após \(idleMinutes) min sem atividade")
+                Text("Encerrar sessão após \(idleMinutes) min sem teclado ou mouse")
             }
 
             Section {
+                Button("Mostrar as boas-vindas novamente") { OnboardingWindow.show(state: state) }
                 Button("Sair do Bandeja IA") { NSApp.terminate(nil) }
             }
         }
         .formStyle(.grouped)
     }
+}
 
-    private func setLaunchAtLogin(_ enabled: Bool) {
+struct MenuBarMetricPicker: View {
+    @AppStorage(Preferences.Key.menuBarMetric) private var metric = MenuBarMetric.claude5h.rawValue
+
+    var body: some View {
+        Picker("Métrica na barra de menus", selection: $metric) {
+            ForEach(MenuBarMetric.allCases) { Text($0.title).tag($0.rawValue) }
+        }
+    }
+}
+
+struct LaunchAtLoginToggle: View {
+    @State private var enabled = SMAppService.mainApp.status == .enabled
+    @State private var error: String?
+
+    var body: some View {
+        Toggle("Abrir o Bandeja IA ao iniciar o Mac", isOn: $enabled)
+            .onChange(of: enabled, perform: apply)
+        if let error {
+            Text(error).font(.caption).foregroundColor(Theme.error)
+        }
+    }
+
+    private func apply(_ enabled: Bool) {
         do {
             if enabled {
                 try SMAppService.mainApp.register()
             } else {
                 try SMAppService.mainApp.unregister()
             }
-            launchError = nil
+            error = nil
         } catch {
-            launchError = "Não foi possível alterar: \(error.localizedDescription). Rode o app a partir do .app em /Applications."
+            self.error = "Não foi possível alterar. Mova o Bandeja IA para a pasta Aplicativos e tente de novo."
         }
     }
 }
@@ -73,71 +87,155 @@ private struct GeneralPane: View {
 // MARK: - Operadores
 
 private struct ProvidersPane: View {
-    @AppStorage(Preferences.Key.claudeCredentialSource) private var credentialSource = ClaudeCredentialSource.claudeCode.rawValue
-    @AppStorage(Preferences.Key.geminiDailyQuota) private var geminiQuota = GeminiQuota.defaultAppPrompts
     @AppStorage(Preferences.Key.geminiPromptsPerSession) private var promptsPerSession = GeminiLimits.defaultPromptsPerSession
-    @State private var sessionKey = ""
-    @State private var hasSessionKey = Keychain.exists(account: Keychain.Account.claudeSessionKey)
-    @State private var keychainError: String?
 
     var body: some View {
         Form {
             Section("Claude") {
-                Picker("Origem da credencial", selection: $credentialSource) {
-                    ForEach(ClaudeCredentialSource.allCases) { Text($0.title).tag($0.rawValue) }
-                }
-                if credentialSource == ClaudeCredentialSource.sessionKey.rawValue {
-                    SecureField("sessionKey", text: $sessionKey, prompt: Text(hasSessionKey ? "•••••• salvo no Keychain" : "cole o cookie sessionKey"))
-                    HStack {
-                        Button("Salvar no Keychain", action: saveSessionKey)
-                            .disabled(sessionKey.isEmpty)
-                        if hasSessionKey {
-                            Button("Remover", role: .destructive) {
-                                Keychain.delete(account: Keychain.Account.claudeSessionKey)
-                                hasSessionKey = false
-                            }
-                        }
-                    }
-                    if let keychainError {
-                        Text(keychainError).font(.caption).foregroundColor(Theme.error)
-                    }
-                } else {
-                    Text("Lê o token OAuth que o Claude Code guarda no Keychain (item “Claude Code-credentials”). O macOS pedirá permissão na primeira leitura.")
-                        .font(.caption)
-                        .foregroundColor(Theme.secondary)
-                }
-                Text("Sem credencial, a janela de 5 h é estimada pelos tokens do Claude Code (orçamento \(ClaudeEstimator.formatTokens(Preferences.claudeTokenBudget)) tokens, \(Preferences.claudeBudgetIsCalibrated ? "calibrado com o dado oficial" : "valor padrão, sem calibração")).")
+                ClaudeConnectionView()
+                Text("Sem a conexão, a janela de 5 h é estimada pelos tokens do Claude Code (orçamento de \(ClaudeEstimator.formatTokens(Preferences.claudeTokenBudget)) tokens, \(Preferences.claudeBudgetIsCalibrated ? "calibrado com o dado oficial" : "valor padrão, ainda sem calibração")). Os limites usam um endpoint não documentado e podem parar de funcionar sem aviso.")
                     .font(.caption)
                     .foregroundColor(Theme.secondary)
-                Text("Os limites do Claude usam um endpoint não documentado e podem parar de funcionar sem aviso.")
-                    .font(.caption)
-                    .foregroundColor(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
 
             Section("Gemini") {
-                Stepper(value: $geminiQuota, in: 10...1000, step: 10) {
-                    Text("Cota diária do app: \(geminiQuota) prompts")
-                }
+                GeminiQuotaStepper()
                 Stepper(value: $promptsPerSession, in: 1...20, step: 1) {
                     Text("Prompts estimados por sessão no app: \(Int(promptsPerSession))")
                 }
-                Text("O Gemini não expõe uso restante; a contagem é local e zera à meia-noite do Pacífico. CLI: \(GeminiQuota.cliRequests) requisições/dia.")
+                Text("O Gemini não informa o uso restante: a contagem é feita aqui e zera à meia-noite do Pacífico. Gemini CLI: \(GeminiQuota.cliRequests) requisições por dia.")
                     .font(.caption)
                     .foregroundColor(Theme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .formStyle(.grouped)
     }
+}
 
-    private func saveSessionKey() {
-        do {
-            try Keychain.save(sessionKey.trimmingCharacters(in: .whitespacesAndNewlines), account: Keychain.Account.claudeSessionKey)
-            sessionKey = ""
-            hasSessionKey = true
-            keychainError = nil
-        } catch {
-            keychainError = "Falha ao salvar no Keychain."
+struct GeminiQuotaStepper: View {
+    @AppStorage(Preferences.Key.geminiDailyQuota) private var geminiQuota = GeminiQuota.defaultAppPrompts
+
+    var body: some View {
+        Stepper(value: $geminiQuota, in: 10...1000, step: 10) {
+            Text("Cota diária do app Gemini: \(geminiQuota) prompts")
         }
+    }
+}
+
+/// Status da conexão com os limites oficiais do Claude, com o passo a passo para conectar.
+struct ClaudeConnectionView: View {
+    @EnvironmentObject private var state: AppState
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                StatusDot(color: dotColor)
+                Text(title).fontWeight(.medium)
+                Spacer()
+                if state.claudeConnection == .checking {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Button("Verificar agora") { state.checkClaudeNow() }
+                }
+            }
+
+            switch state.claudeConnection {
+            case let .connected(date):
+                Text("Limites oficiais da sua assinatura (sessão de 5 h e semanal). Última consulta: \(Formatters.time(date)).")
+                    .font(.caption)
+                    .foregroundColor(Theme.secondary)
+            case .checking:
+                Text("Se o macOS perguntar sobre “Claude Code-credentials”, escolha Sempre permitir.")
+                    .font(.caption)
+                    .foregroundColor(Theme.secondary)
+            default:
+                instructions
+            }
+        }
+    }
+
+    private var instructions: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Para ver os limites oficiais, o Bandeja IA usa o login do Claude Code. Faça uma vez:")
+                .font(.caption)
+                .fixedSize(horizontal: false, vertical: true)
+            StepLine(number: 1, text: "Instale o Claude Code, se ainda não tiver:")
+            CommandRow(command: "curl -fsSL https://claude.ai/install.sh | bash")
+            StepLine(number: 2, text: "Abra o Claude Code, digite /login e conclua no navegador:")
+            CommandRow(command: "~/.local/bin/claude")
+            StepLine(number: 3, text: "Volte aqui, clique em Verificar agora e, quando o macOS perguntar, escolha Sempre permitir.")
+        }
+    }
+
+    private var title: String {
+        switch state.claudeConnection {
+        case .connected: "Conectado"
+        case .checking: "Verificando…"
+        case .notLoggedIn: "Sem login no Claude Code"
+        case .failed: "A consulta falhou; o app tenta de novo sozinho"
+        case .unknown: "Ainda não verificado"
+        }
+    }
+
+    private var dotColor: Color {
+        switch state.claudeConnection {
+        case .connected: Theme.statusActive
+        case .checking, .unknown: Theme.statusPaused
+        case .notLoggedIn: Theme.warning
+        case .failed: Theme.error
+        }
+    }
+}
+
+private struct StepLine: View {
+    let number: Int
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("\(number).").font(Theme.mono(11, .semibold))
+            Text(text).font(.caption).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// Comando para copiar e colar no Terminal.
+struct CommandRow: View {
+    let command: String
+    @State private var copied = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(command)
+                .font(Theme.mono(11))
+                .textSelection(.enabled)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.primary.opacity(0.05), in: RoundedRectangle(cornerRadius: 5))
+            Button(copied ? "Copiado" : "Copiar") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(command, forType: .string)
+                copied = true
+            }
+            Button("Abrir Terminal") {
+                if let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") {
+                    NSWorkspace.shared.openApplication(at: terminal, configuration: .init())
+                }
+            }
+        }
+    }
+}
+
+struct StatusDot: View {
+    let color: Color
+
+    var body: some View {
+        Circle().fill(color).frame(width: 8, height: 8)
     }
 }
 
@@ -154,6 +252,19 @@ private struct ProjectsPane: View {
     var body: some View {
         Form {
             Section("Projetos") {
+                if state.projects.isEmpty {
+                    Text("Nenhum projeto ainda. Eles são criados sozinhos pela pasta do git quando você usa o Claude Code, ou à mão aqui e no menu Projeto ▾ do popover.")
+                        .foregroundColor(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(state.projects) { project in
+                    HStack {
+                        Text(project.name)
+                        Spacer()
+                        Button("Renomear") { rename(project) }.buttonStyle(.borderless)
+                        Button("Excluir") { delete(project) }.buttonStyle(.borderless).foregroundColor(Theme.error)
+                    }
+                }
                 HStack {
                     TextField("Novo projeto", text: $newProject)
                     Button("Adicionar") {
@@ -166,8 +277,9 @@ private struct ProjectsPane: View {
 
             Section("Regras de atribuição") {
                 if rules.isEmpty {
-                    Text("Nenhuma regra. Sem regra, o nome da pasta do git vira o projeto.")
+                    Text("Sem regras, a pasta do repositório git vira o projeto e o uso no navegador vai para o último projeto usado.")
                         .foregroundColor(Theme.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 ForEach(rules) { rule in
                     HStack {
@@ -207,15 +319,15 @@ private struct ProjectsPane: View {
     private var placeholder: String {
         switch ruleKind {
         case .cwd: "~/dev/meu-projeto"
-        case .domain: "gemini.google.com"
-        case .title: "trecho do título da aba"
+        case .domain: "claude.ai/project/…"
+        case .title: "trecho do título da aba ou da janela"
         }
     }
 
     private func kindTitle(_ kind: ProjectRule.Kind) -> String {
         switch kind {
         case .cwd: "Pasta"
-        case .domain: "Domínio"
+        case .domain: "Endereço"
         case .title: "Título"
         }
     }
@@ -233,6 +345,52 @@ private struct ProjectsPane: View {
         ))
         rulePattern = ""
         loadRules()
+    }
+
+    private func rename(_ project: Project) {
+        guard let id = project.id,
+              let name = TextPrompt.ask(
+                  title: "Renomear projeto",
+                  message: "Se já existir um projeto com o novo nome, os dois são juntados.",
+                  initial: project.name
+              )
+        else { return }
+        state.renameProject(id: id, to: name)
+        loadRules()
+    }
+
+    private func delete(_ project: Project) {
+        guard let id = project.id else { return }
+        let alert = NSAlert()
+        alert.messageText = "Excluir “\(project.name)”?"
+        alert.informativeText = "As sessões continuam registradas, mas ficam sem projeto. As regras deste projeto são removidas."
+        alert.addButton(withTitle: "Excluir")
+        alert.addButton(withTitle: "Cancelar")
+        alert.buttons.first?.hasDestructiveAction = true
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        state.deleteProject(id: id)
+        loadRules()
+    }
+}
+
+/// Pergunta curta com campo de texto (modal).
+@MainActor
+enum TextPrompt {
+    static func ask(title: String, message: String, initial: String = "", confirm: String = "OK") -> String? {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        field.stringValue = initial
+        field.placeholderString = "Nome do projeto"
+        alert.accessoryView = field
+        alert.addButton(withTitle: confirm)
+        alert.addButton(withTitle: "Cancelar")
+        alert.window.initialFirstResponder = field
+        NSApp.activate(ignoringOtherApps: true)
+        guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+        let value = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
     }
 }
 

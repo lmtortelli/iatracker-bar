@@ -40,27 +40,12 @@ enum MenuBarMetric: String, CaseIterable, Identifiable {
     }
 }
 
-enum ClaudeCredentialSource: String, CaseIterable, Identifiable {
-    case claudeCode
-    case sessionKey
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .claudeCode: "Token do Claude Code (Keychain)"
-        case .sessionKey: "sessionKey do claude.ai"
-        }
-    }
-}
-
 /// Chaves e valores padrão do `UserDefaults`.
 enum Preferences {
     enum Key {
         static let menuBarMetric = "menuBarMetric"
         static let geminiDailyQuota = "geminiDailyQuota"
         static let idleMinutes = "idleMinutes"
-        static let claudeCredentialSource = "claudeCredentialSource"
         static let paused = "paused"
         static let claudeTokenBudget = "claudeTokenBudget"
         static let geminiPromptsPerSession = "geminiPromptsPerSession"
@@ -72,7 +57,6 @@ enum Preferences {
             Key.menuBarMetric: MenuBarMetric.claude5h.rawValue,
             Key.geminiDailyQuota: GeminiQuota.defaultAppPrompts,
             Key.idleMinutes: 2,
-            Key.claudeCredentialSource: ClaudeCredentialSource.claudeCode.rawValue,
             Key.geminiPromptsPerSession: GeminiLimits.defaultPromptsPerSession,
         ])
     }

@@ -41,7 +41,26 @@ enum Snapshot {
             }
         }
         state.tab = .today
+
+        for step in OnboardingView.Step.allCases {
+            let view = OnboardingView(initialStep: step) {}.environmentObject(state)
+            render(view, appearance: .aqua, to: directory.appendingPathComponent("boas-vindas-\(step.rawValue + 1).png"))
+        }
         NSApp.terminate(nil)
+    }
+
+    private static func render<V: View>(_ view: V, appearance: NSAppearance.Name, to url: URL) {
+        let hosting = NSHostingView(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
+        hosting.appearance = NSAppearance(named: appearance)
+        hosting.frame.size = hosting.fittingSize
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = hosting
+        hosting.layoutSubtreeIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        guard let rep = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return }
+        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        try? rep.representation(using: .png, properties: [:])?.write(to: url)
+        print("snapshot: \(url.path)")
     }
 }
 

@@ -11,7 +11,10 @@ final class ActivityMonitor {
     /// Chamado quando sessões mudam no banco.
     var onChange: () -> Void = {}
     /// Navegadores em que a Automação foi negada (para avisar na interface).
-    private(set) var automationDenied: Set<Browser> = []
+    private(set) var automationDenied: Set<Browser> = [] {
+        didSet { if automationDenied != oldValue { onAutomationChange(automationDenied) } }
+    }
+    var onAutomationChange: (Set<Browser>) -> Void = { _ in }
 
     private let database: AppDatabase
     private let tracker: SessionTracker

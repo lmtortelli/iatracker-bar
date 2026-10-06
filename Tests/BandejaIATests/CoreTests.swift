@@ -164,6 +164,35 @@ enum DatabaseTests {
             let latest = try db.latestSnapshots(for: .claude).sorted { $0.window < $1.window }
             expectEqual(latest.map(\.usedPct), [40, 20])
         }),
+        ("renomear projeto e juntar com um de mesmo nome", {
+            let db = try AppDatabase.inMemory()
+            let a = try db.project(named: "site-lumen")
+            let b = try db.project(named: "Site Lumen")
+            try db.insert(Session(provider: .claude, source: "x", projectId: a.id, startedAt: date(2026, 10, 5, 9, 0), endedAt: date(2026, 10, 5, 10, 0)))
+            try db.insert(ProjectRule(projectId: a.id ?? 0, kind: .cwd, pattern: "~/dev/site-lumen"))
+
+            // Renomear simples.
+            let renamed = try db.renameProject(id: try db.project(named: "Avulso").id ?? 0, to: "Pessoal")
+            expect(try db.projects().contains { $0.id == renamed && $0.name == "Pessoal" })
+
+            // Nome já existe: junta em "Site Lumen".
+            let merged = try db.renameProject(id: a.id ?? 0, to: "Site Lumen")
+            expectEqual(merged, b.id)
+            expectEqual(try db.projects().map(\.name).sorted(), ["Pessoal", "Site Lumen"])
+            expectEqual(try db.sessions(from: date(2026, 10, 5), to: date(2026, 10, 6)).first?.projectId, b.id)
+            expectEqual(try db.rules().first?.projectId, b.id)
+        }),
+        ("excluir projeto mantém sessões sem projeto e remove regras", {
+            let db = try AppDatabase.inMemory()
+            let a = try db.project(named: "A")
+            try db.insert(Session(provider: .claude, source: "x", projectId: a.id, startedAt: date(2026, 10, 5, 9, 0), endedAt: date(2026, 10, 5, 10, 0)))
+            try db.insert(ProjectRule(projectId: a.id ?? 0, kind: .title, pattern: "A"))
+            try db.deleteProject(id: a.id ?? 0)
+            let sessions = try db.sessions(from: date(2026, 10, 5), to: date(2026, 10, 6))
+            expectEqual(sessions.count, 1)
+            expect(sessions.first?.projectId == nil)
+            expectEqual(try db.rules().count, 0)
+        }),
         ("dados de demonstração populam 30 dias", {
             let db = try AppDatabase.inMemory()
             let now = date(2026, 10, 5, 14, 32)

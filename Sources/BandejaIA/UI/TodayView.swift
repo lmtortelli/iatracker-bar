@@ -11,6 +11,10 @@ struct TodayView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
+            if !state.deniedBrowsers.isEmpty {
+                PermissionWarning(browsers: state.deniedBrowsers)
+            }
+
             if state.paused {
                 PausedCard()
             } else if let active = state.activeSession {
@@ -80,7 +84,7 @@ struct TodayView: View {
                     .topSeparator()
             }
             if sessions.isEmpty {
-                Text("Nenhuma sessão hoje.")
+                Text("Nenhuma sessão hoje ainda. Sessões com menos de 30 s não contam.")
                     .font(.system(size: 12))
                     .foregroundColor(Theme.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -166,12 +170,43 @@ private struct PausedCard: View {
 
 private struct IdleCard: View {
     var body: some View {
-        HStack(spacing: 6) {
-            Circle().fill(Theme.statusPaused).frame(width: 6, height: 6)
-            Text("Nenhum uso de IA detectado agora.")
-                .font(.system(size: 13))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 6) {
+                Circle().fill(Theme.statusPaused).frame(width: 6, height: 6)
+                Text("Nenhum uso de IA detectado agora.")
+                    .font(.system(size: 13))
+                    .foregroundColor(Theme.secondary)
+            }
+            Text("Conta sozinho: claude.ai e Gemini no navegador, o app Claude e o Claude Code.")
+                .font(.system(size: 11))
                 .foregroundColor(Theme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .card()
+    }
+}
+
+private struct PermissionWarning: View {
+    let browsers: Set<Browser>
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(Theme.warning)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Sem permissão para ler \(names).")
+                    .font(.system(size: 12, weight: .medium))
+                Text("O uso de IA nesse navegador não está sendo contado.")
+                    .font(.system(size: 11))
+                    .foregroundColor(Theme.secondary)
+            }
+            Spacer(minLength: 4)
+            Button("Corrigir") { PermissionsModel.openSettings("Privacy_Automation") }
+                .controlSize(.small)
+        }
+        .card()
+    }
+
+    private var names: String {
+        browsers.map(\.displayName).sorted().joined(separator: ", ")
     }
 }

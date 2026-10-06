@@ -47,6 +47,10 @@ scripts/build-app.sh
 ```
 
 ### Decisões de UI
+- Boas-vindas em 5 passos (`OnboardingView`): o que é + privacidade + prévia do item da barra, navegadores, conexão com o Claude (com comandos para copiar e "Verificar agora"), ajustes rápidos, pronto. Reabrível em Preferências › Geral.
+- Credencial do Claude: só o login do Claude Code (`/login`). `sessionKey` removido (não validável); token de longa duração (`claude setup-token`) não testado.
+- Popover avisa quando a Automação de um navegador foi negada; textos de estado vazio explicam o que é contado.
+- Projetos: renomear para um nome existente junta os dois (sessões e regras); excluir deixa as sessões sem projeto.
 - Item da barra: a bolinha + mini-barra é um `NSImage` colorido (a barra de menus só aceita imagem + texto).
 - Botão `Projeto ▾` abre um `NSMenu` (o `Menu` do SwiftUI ignora o estilo customizado).
 - Preferências numa `NSWindow` própria (`PreferencesWindow`): a cena `Settings` abre atrás das janelas em app `LSUIElement`.
