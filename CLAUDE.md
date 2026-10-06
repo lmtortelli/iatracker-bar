@@ -1,29 +1,29 @@
-# Bandeja IA — instruções do projeto
+# IAtracker-bar — instruções do projeto
 
-App de barra de menus para macOS que mede tempo de uso de assistentes de IA, atribui a projetos e mostra limites de plano. Operadores v1: **Claude** e **Gemini**. Especificação visual completa em `design/README.md` e protótipo em `design/Bandeja IA v2.dc.html`.
+App de barra de menus para macOS que mede tempo de uso de assistentes de IA, atribui a projetos e mostra limites de plano. Operadores v1: **Claude** e **Gemini**. Especificação visual completa em `design/README.md` e protótipo em `design/IAtracker-bar v2.dc.html`.
 
 ## Stack
 - Swift 5.10+, SwiftUI, macOS 13+ (`MenuBarExtra` com `.menuBarExtraStyle(.window)`), `LSUIElement = YES` (sem ícone no Dock).
 - Persistência: SQLite via **GRDB** (Swift Package).
-- Sem sandbox; distribuição via GitHub Releases (app não notarizado). Documentar no README: `xattr -dr com.apple.quarantine /Applications/BandejaIA.app`.
+- Sem sandbox; distribuição via GitHub Releases (app não notarizado). Documentar no README: `xattr -dr com.apple.quarantine /Applications/IAtracker-bar.app`.
 - Sem dependências além de GRDB. Sem telemetria. Nada de conteúdo de conversa é lido ou salvo — só timestamps, origem, projeto e contadores.
 - **Build sem Xcode:** a máquina de desenvolvimento só tem Command Line Tools (Swift 5.10, SDK 14.4, sem XCTest). Por isso o projeto é um **Swift Package** (não `.xcodeproj`), GRDB fixado em `6.29.x` (GRDB 7 exige Swift 6) e o `.app` é montado por `scripts/build-app.sh` com `Resources/Info.plist` + assinatura ad hoc.
 
 ## Comandos
 ```bash
 swift build                              # compila tudo
-swift run bandeja-tests                  # testes (mini-harness; sai com 1 se falhar)
-swift run BandejaIA                      # roda o app com coleta real (~/Library/Application Support/BandejaIA)
-swift run BandejaIA --demo               # dados fictícios do protótipo, banco em memória
-swift run BandejaIA --snapshot <pasta>   # DEBUG: salva PNGs do popover (claro/escuro) e sai
-scripts/build-app.sh [debug|release]     # gera build/BandejaIA.app
+swift run iatracker-tests                  # testes (mini-harness; sai com 1 se falhar)
+swift run IAtrackerBar                      # roda o app com coleta real (~/Library/Application Support/IAtrackerBar)
+swift run IAtrackerBar --demo               # dados fictícios do protótipo, banco em memória
+swift run IAtrackerBar --snapshot <pasta>   # DEBUG: salva PNGs do popover (claro/escuro) e sai
+scripts/build-app.sh [debug|release]     # gera build/IAtracker-bar.app
 ```
 
 ## Estrutura
 ```
 Package.swift
 Sources/
-  BandejaIACore/        lógica pura, sem AppKit — tudo que tem teste mora aqui
+  IAtrackerBarCore/        lógica pura, sem AppKit — tudo que tem teste mora aqui
     Models/             Models.swift (registros GRDB + LimitWindow/ProviderLimits)
     Storage/            Database.swift (AppDatabase), Migrations.swift
     Activity/           ActivityClassifier.swift (foco/URL → operador), SessionTracker.swift (máquina de sessões)
@@ -33,14 +33,14 @@ Sources/
     Projects/           ProjectResolver.swift (cwd → raiz git, domínio, título, último usado), ProjectAssigner, GitRoot
     Report/             ReportAggregator.swift (Hoje, semana, 30 dias, por projeto)
     Support/            Formatters.swift, DemoData.swift
-  BandejaIA/            app SwiftUI/AppKit
-    App/                BandejaIAApp.swift, AppState.swift, MenuBarLabel.swift
+  IAtrackerBar/            app SwiftUI/AppKit
+    App/                IAtrackerBarApp.swift, AppState.swift, MenuBarLabel.swift
     Limits/             ClaudeProvider.swift (Keychain/sessionKey + HTTP, protocolo UsageProvider), LimitsService.swift (+ LimitNotifier)
     Collector/          ActivityMonitor, BrowserTabReader, IdleDetector (+ WindowTitleReader), LogWatcher (FSEvents)
     UI/                 Theme, PopoverView, TodayView, ReportView, LimitsCard, SessionRow, PreferencesView, PermissionsView
     Support/            Preferences.swift, Permissions.swift, Keychain.swift, Snapshot.swift (DEBUG)
 Tests/
-  BandejaIATests/       executável `bandeja-tests` (main.swift + Harness.swift + *Tests.swift)
+  IAtrackerBarTests/       executável `iatracker-tests` (main.swift + Harness.swift + *Tests.swift)
   Fixtures/             JSON/JSONL de exemplo anonimizados (acesso via Bundle.module)
 Resources/Info.plist    LSUIElement, NSAppleEventsUsageDescription
 scripts/build-app.sh
@@ -56,7 +56,7 @@ scripts/build-app.sh
 - Preferências numa `NSWindow` própria (`PreferencesWindow`): a cena `Settings` abre atrás das janelas em app `LSUIElement`.
 - Sem rolagem no popover: a aba Hoje lista as 8 sessões mais recentes.
 - Renovação em até 24 h mostra só a hora (`renova 04:00`); depois disso, dia + hora (`renova Qui 09:00`).
-- ⌘Q no popover e "Sair do Bandeja IA" em Preferências › Geral (não há menu nem Dock).
+- ⌘Q no popover e "Sair do IAtracker-bar" em Preferências › Geral (não há menu nem Dock).
 
 ## Modelo de dados
 - `session(id, provider, source, project_id, cwd, started_at, ended_at, manual_project BOOL)`

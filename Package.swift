@@ -2,11 +2,11 @@
 import PackageDescription
 
 let package = Package(
-    name: "BandejaIA",
+    name: "IAtrackerBar",
     defaultLocalization: "pt",
     platforms: [.macOS(.v13)],
     products: [
-        .executable(name: "BandejaIA", targets: ["BandejaIA"]),
+        .executable(name: "IAtrackerBar", targets: ["IAtrackerBar"]),
     ],
     dependencies: [
         .package(url: "https://github.com/groue/GRDB.swift.git", "6.29.0"..<"7.0.0"),
@@ -14,21 +14,21 @@ let package = Package(
     targets: [
         // Lógica pura (modelos, banco, parsers, agregações) — testável sem UI.
         .target(
-            name: "BandejaIACore",
+            name: "IAtrackerBarCore",
             dependencies: [.product(name: "GRDB", package: "GRDB.swift")]
         ),
         // App de barra de menus (SwiftUI + AppKit).
         .executableTarget(
-            name: "BandejaIA",
-            dependencies: ["BandejaIACore"]
+            name: "IAtrackerBar",
+            dependencies: ["IAtrackerBarCore"]
         ),
         // As Command Line Tools não trazem XCTest: os testes são um executável
-        // com um mini-harness próprio. Rode com `swift run bandeja-tests`.
+        // com um mini-harness próprio. Rode com `swift run iatracker-tests`.
         .executableTarget(
-            name: "bandeja-tests",
-            dependencies: ["BandejaIACore"],
+            name: "iatracker-tests",
+            dependencies: ["IAtrackerBarCore"],
             path: "Tests",
-            sources: ["BandejaIATests"],
+            sources: ["IAtrackerBarTests"],
             resources: [.copy("Fixtures")]
         ),
     ]
