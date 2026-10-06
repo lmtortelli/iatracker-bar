@@ -55,12 +55,15 @@ scripts/build-app.sh
 - Item da barra: a bolinha + mini-barra é um `NSImage` colorido (a barra de menus só aceita imagem + texto).
 - Botão `Projeto ▾` abre um `NSMenu` (o `Menu` do SwiftUI ignora o estilo customizado).
 - Preferências numa `NSWindow` própria (`PreferencesWindow`): a cena `Settings` abre atrás das janelas em app `LSUIElement`.
-- Aba Hoje com foco nos limites: o histórico do dia (barra por operador, legenda e sessões) fica **recolhido por padrão** atrás da linha "› Hoje · total"; a escolha é lembrada em `UserDefaults["showTodayHistory"]`.
+- Aba Hoje com foco nos limites: o histórico do dia (barra por operador, legenda e sessões) fica **recolhido por padrão** atrás da linha "› Hoje · total" e volta a recolher (com a aba Hoje selecionada) sempre que o popover fecha (`AppState.popoverClosed`).
+- A janela do `MenuBarExtra` cresce com o conteúdo mas não encolhe: `PopoverView` mede a altura (preference) e `PopoverWindowStyler` ajusta o frame da janela mantendo o topo preso à barra.
+- Rodapé: Pausar · Preferências… · Sair (além de ⌘Q).
+- Uma instância só: `LSMultipleInstancesProhibited` no Info.plist + `SingleInstance` na abertura (avisa e encerra a cópia nova; encerra também o app antigo `io.github.bandejaia`).
 - Sem rolagem no popover: aberto, o histórico lista as 5 sessões mais recentes (cabe em tela de 900 pt).
 - Cantos: popover 16 pt e cards 12 pt (curva contínua), mais arredondados que o protótipo a pedido. A janela do `MenuBarExtra` é arredondada por `PopoverWindowStyler` (raio aplicado na view de conteúdo e superiores, fundo da janela transparente).
 - `PopoverView` usa `.fixedSize(vertical: true)`: sem isso a janela do `MenuBarExtra` pode crescer até a altura da tela e centralizar o conteúdo, deixando um vão abaixo da barra de menus.
 - Renovação em até 24 h mostra só a hora (`renova 04:00`); depois disso, dia + hora (`renova Qui 09:00`).
-- ⌘Q no popover e "Sair do IAtracker-bar" em Preferências › Geral (não há menu nem Dock).
+- Sair: botão no rodapé do popover, ⌘Q e "Sair do IAtracker-bar" em Preferências › Geral (não há menu nem Dock).
 
 ## Modelo de dados
 - `session(id, provider, source, project_id, cwd, started_at, ended_at, manual_project BOOL)`

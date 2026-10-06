@@ -22,6 +22,8 @@
 	<string>13.0</string>
 	<key>LSUIElement</key>
 	<true/>
+	<key>LSMultipleInstancesProhibited</key>
+	<true/>
 	<key>NSAppleEventsUsageDescription</key>
 	<string>O IAtracker-bar lê apenas a URL da aba ativa do navegador para saber se você está usando Claude ou Gemini. Nenhum conteúdo da página é lido.</string>
 	<key>NSHumanReadableCopyright</key>

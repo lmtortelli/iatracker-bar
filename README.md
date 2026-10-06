@@ -82,10 +82,11 @@ O status de cada uma fica em **Preferências › Permissões**. Como o app é as
 
 ## Usando
 
-- **Clique no item da barra** para abrir o popover. A aba **Hoje** mostra o que está sendo detectado agora e os **limites**; o histórico do dia (tempo por operador e sessões) fica recolhido — clique em **› Hoje** para abrir (a escolha é lembrada). A aba **Relatório** mostra semana e 30 dias.
+- **Clique no item da barra** para abrir o popover. A aba **Hoje** mostra o que está sendo detectado agora e os **limites**; o histórico do dia (tempo por operador e sessões) fica recolhido — clique em **› Hoje** para abrir; ao fechar o popover ele volta recolhido. A aba **Relatório** mostra semana e 30 dias.
 - **Projeto ▾** troca o projeto da sessão atual ou cria um novo.
 - **❙❙ Pausar detecção** para tudo até você retomar.
-- **⌘,** abre as Preferências e **⌘Q** encerra (com o popover aberto).
+- **Sair** no rodapé do popover (ou **⌘Q**) encerra o app; **⌘,** abre as Preferências.
+- Só uma cópia do app roda por vez: abrir de novo apenas lembra que ele já está na barra de menus.
 
 ## Privacidade
 
