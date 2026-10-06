@@ -32,6 +32,7 @@ struct PopoverView: View {
         // A janela do MenuBarExtra assume a altura proposta pelo conteúdo: sem isto ela pode
         // crescer até a altura da tela e o conteúdo fica centralizado, longe da barra de menus.
         .fixedSize(horizontal: false, vertical: true)
+        .background(PopoverWindowStyler(cornerRadius: Theme.popoverRadius))
         .font(.system(size: 12))
         .onAppear { state.popoverOpened() }
         .background(quitShortcut)
@@ -66,5 +67,53 @@ struct PopoverView: View {
             .opacity(0)
             .allowsHitTesting(false)
             .accessibilityHidden(true)
+    }
+}
+
+/// Arredonda a janela do `MenuBarExtra`: o padrão do sistema tem cantos quase retos.
+/// Aplica o raio (curva contínua) na view de conteúdo e nas superiores — o fundo de vidro do
+/// sistema fica recortado junto — e recalcula a sombra a cada mudança de tamanho.
+struct PopoverWindowStyler: NSViewRepresentable {
+    let cornerRadius: CGFloat
+
+    func makeNSView(context: Context) -> NSView {
+        let view = StylerView()
+        view.cornerRadius = cornerRadius
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {}
+
+    final class StylerView: NSView {
+        var cornerRadius: CGFloat = 16
+        private var resizeObserver: NSObjectProtocol?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
+            guard let window else { return }
+            DispatchQueue.main.async { [weak self] in self?.apply(to: window) }
+            resizeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResizeNotification, object: window, queue: .main
+            ) { [weak window] _ in window?.invalidateShadow() }
+        }
+
+        private func apply(to window: NSWindow) {
+            window.isOpaque = false
+            window.backgroundColor = .clear
+            var view: NSView? = window.contentView
+            while let current = view {
+                current.wantsLayer = true
+                current.layer?.cornerRadius = cornerRadius
+                current.layer?.cornerCurve = .continuous
+                current.layer?.masksToBounds = true
+                view = current.superview
+            }
+            window.invalidateShadow()
+        }
+
+        deinit {
+            if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
+        }
     }
 }

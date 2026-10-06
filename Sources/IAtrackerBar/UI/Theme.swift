@@ -14,6 +14,10 @@ enum Theme {
     static let statusActive = Color(hex: 0x3FB56A)
     static let statusPaused = Color(hex: 0x8E9096)
 
+    /// Raios de canto: popover (janela) e cards.
+    static let popoverRadius: CGFloat = 16
+    static let cardRadius: CGFloat = 12
+
     static let cardBackground = Color.dynamic(light: NSColor.white, dark: NSColor.white.withAlphaComponent(0.07))
     static let cardBorder = Color.primary.opacity(0.06)
     static let separator = Color.primary.opacity(0.06)
@@ -87,8 +91,8 @@ struct CardModifier: ViewModifier {
         content
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Theme.cardBackground, in: RoundedRectangle(cornerRadius: 9, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Theme.cardBorder))
+            .background(Theme.cardBackground, in: RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous).strokeBorder(Theme.cardBorder))
     }
 }
 
