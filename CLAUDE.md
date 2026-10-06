@@ -219,3 +219,9 @@ Inspeção feita com `scripts/inspect-local-logs.py`, que imprime só nomes de c
 - `scripts/build-release.sh`: roda os testes, gera o app **universal** (compilação cruzada `--triple x86_64-apple-macosx13.0` + `lipo`, funciona sem Xcode) e o `.zip` com `ditto`, e imprime SHA-256 e os comandos de tag/release.
 - App assinado ad hoc e não notarizado: instalação exige `xattr -dr com.apple.quarantine /Applications/IAtracker-bar.app` (documentado no README).
 - Imagens do README em `docs/images/`, geradas por `--snapshot` com `DemoData`.
+
+## CI e releases (GitHub Actions)
+- `.github/workflows/ci.yml` — em PR para `main` (e chamado pelo release): título do PR semântico, `swift build`, `swift run iatracker-tests`, `scripts/test-versioning.sh` e montagem do `.app`. Runner `macos-15`; testes não dependem do fuso (verificados em UTC e America/Los_Angeles).
+- `.github/workflows/release.yml` — push na `main`: chama o CI e, se `scripts/next-version.sh` indicar bump, roda `SKIP_TESTS=1 scripts/build-release.sh <versão>`, gera notas com `scripts/release-notes.sh` e publica com `gh release create v<versão> --target $GITHUB_SHA`.
+- Versionamento SemVer pelos commits desde a última tag `v*`: `fix`/`perf` → patch, `feat` → minor, `tipo!` ou `BREAKING CHANGE:` → major; demais tipos não geram release. Sem tag, a base é 0.0.0 (o primeiro release com `feat` é 0.1.0).
+- Mensagens de commit e títulos de PR **devem** seguir o commit semântico (o título vira o commit no squash).
